@@ -53,22 +53,30 @@ Architecture technique (React Native)
 
 Configuration
 -------------
-Créer un fichier `.env` (ou variables d’environnement équivalentes) pour les clés API et réglages:
+Copier `.env.example` en `.env` et remplir les valeurs. Le token Oblyk va dans le header `HttpApiAccessToken` de chaque requête.
+
+```bash
+cp .env.example .env
+```
 
 ```env
-# Clés et endpoints
+# Clés et endpoints Oblyk
+# Note: OBLYK_API_TOKEN est actuellement un token de dev local (placeholder).
+# Les liens pour obtenir une clé d'organisation de prod sont hors service côté Oblyk.
 OBLYK_API_BASE_URL=https://api.oblyk.org
+OBLYK_API_TOKEN=your_oblyk_api_token_here
+
+# Météo — source principale gratuite, sans clé
+OPEN_METEO_API_BASE_URL=https://api.open-meteo.com
+
+# Météo — source secondaire optionnelle (croisement qualité si clé disponible)
 METEOBLUE_API_BASE_URL=https://my.meteoblue.com
-METEOBLUE_API_KEY=changeme
+METEOBLUE_API_KEY=
 
 # Paramètres application
 NOTIFICATION_CHECK_INTERVAL_HOURS=4
 DEFAULT_LOCALE=fr
 ENABLE_GEOLOCATION_PROMPT=true
-
-# Optionnel: second fournisseur si quotas dépassés
-METEOFRANCE_API_BASE_URL=https://api.meteo.fr
-METEOFRANCE_API_KEY=
 ```
 
 Installation et lancement (développement)
