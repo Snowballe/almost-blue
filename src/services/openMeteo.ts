@@ -1,5 +1,7 @@
 import axios from 'axios';
 import {OPEN_METEO_API_BASE_URL} from '@env';
+import {buildForecast} from '../utils/weatherLogic';
+import {WeatherForecast} from '../types/weather';
 
 export interface OpenMeteoHourly {
   time: string[];
@@ -8,6 +10,9 @@ export interface OpenMeteoHourly {
   precipitation: number[];
   weathercode: number[];
 }
+
+const cache = new Map<string, {forecast: WeatherForecast; ts: number}>();
+const CACHE_TTL = 60 * 60 * 1000; // 1h
 
 export async function fetchForecast(
   latitude: number,
@@ -24,4 +29,19 @@ export async function fetchForecast(
     },
   });
   return data.hourly;
+}
+
+export async function getCachedForecast(
+  latitude: number,
+  longitude: number,
+): Promise<WeatherForecast> {
+  const key = `${latitude},${longitude}`;
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) {
+    return cached.forecast;
+  }
+  const hourly = await fetchForecast(latitude, longitude);
+  const forecast = buildForecast(hourly);
+  cache.set(key, {forecast, ts: Date.now()});
+  return forecast;
 }

@@ -2,87 +2,111 @@
 
 Application React Native qui alerte les grimpeurs outdoor quand une fenêtre météo favorable s'ouvre sur leurs secteurs d'escalade suivis, hors saison estivale.
 
-## Équipe
-
-- **Snoons** (Snowballe) — sysadmin, lead projet. Pas dev : adapter les explications en conséquence, aller droit au but.
-- **Wawann** — développeur React Native (front).
-
 ## Stack
 
 | Couche | Choix |
 |---|---|
 | Framework | React Native 0.82 + TypeScript |
 | Cibles | Android (priorité) → iOS → Web |
-| État | Zustand (décision prise, package installé) |
+| État | Zustand (persist AsyncStorage) |
 | Navigation | React Navigation (native-stack + bottom-tabs) |
 | HTTP | axios |
-| Storage | AsyncStorage (simple) + SQLite (complexe, à ajouter) |
-| Tests | Jest |
-| Météo principale | Open-Meteo (gratuit, sans clé) |
-| Météo secondaire | Meteoblue (optionnel, clé requise) |
-| Secteurs | Oblyk API (`HttpApiAccessToken` header) |
+| Carte | @maplibre/maplibre-react-native + tuiles OSM (sans clé) |
+| Bottom sheet | @gorhom/bottom-sheet v5 |
+| Animations | react-native-reanimated |
+| Gestes | react-native-gesture-handler |
+| Météo | Open-Meteo (gratuit, sans clé) |
+
+## Palette — dark crépusculaire (référence : Chet Baker, "Almost Blue")
+
+| Token | Hex | Usage |
+|---|---|---|
+| background | `#0D0F14` | fond principal |
+| surface | `#161B26` | cartes, listes |
+| surfaceHigh | `#1E2535` | éléments surélevés |
+| border | `#2A3347` | séparateurs |
+| accent | `#4D7EFF` | actions, pins carte |
+| textPrimary | `#E8EAF0` | texte principal |
+| textMuted | `#7B85A0` | texte secondaire |
+| good | `#5EEAD4` | rocher sec |
+| warning | `#F59E0B` | incertain |
+| danger | `#EF4444` | humide / tempête |
+
+## Architecture données
+
+**Secteurs hardcodés** dans `src/data/sectors.ts` — pas d'API secteurs, pas d'UI d'ajout.  
+Les topos sont saisis à la main directement dans le code.
+
+```typescript
+Sector { id, name, latitude, longitude, altitude?, notes?, subSectors[] }
+SubSector { id, name, orientation, notes? }
+```
+
+- Un sous-secteur hérite du GPS du secteur parent (un seul appel météo par secteur).
+- L'orientation appartient au sous-secteur (même falaise = même orientation).
+- Pour un grand site avec expositions multiples → créer deux `Sector` distincts.
+
+**Favoris** : seuls les IDs sont persistés (`src/stores/useSectorsStore.ts`).
 
 ## Variables d'environnement
 
 Copier `.env.example` → `.env`. Ne jamais committer `.env`.
 
 ```env
-OBLYK_API_BASE_URL=https://api.oblyk.org
-OBLYK_API_TOKEN=...
 OPEN_METEO_API_BASE_URL=https://api.open-meteo.com
-METEOBLUE_API_BASE_URL=https://my.meteoblue.com
-METEOBLUE_API_KEY=
-NOTIFICATION_CHECK_INTERVAL_HOURS=4
-DEFAULT_LOCALE=fr
-ENABLE_GEOLOCATION_PROMPT=true
+GOOGLE_MAPS_API_KEY=ta_cle_google_maps
 ```
 
-Note : le token Oblyk de prod est inaccessible (liens Oblyk hors service). Utiliser un token de dev en attendant.
+La clé Google Maps doit aussi être dans `android/gradle.properties` :
+```
+GOOGLE_MAPS_API_KEY=ta_cle_google_maps
+```
 
 ## Commandes utiles
 
 ```bash
 npm install
-npx react-native start          # Metro bundler
-npx react-native run-android    # Android
-npx react-native run-ios        # iOS (macOS uniquement)
-npm test                        # Jest
-npm run lint                    # ESLint
-cd android && ./gradlew assembleDebug   # APK debug
+npx react-native start --reset-cache   # Metro bundler
+npx react-native run-android           # Android
+npm test                               # Jest
+npm run lint                           # ESLint
+cd android && ./gradlew assembleDebug  # APK debug
 ```
 
-## Logique météo (résumé)
+## Logique météo
 
-Détecter des créneaux « rocher grimpable » hors été :
-- Analyser les prochaines 24–72h, vérification toutes les 4–6h.
-- Si précipitations récentes → exiger vent minimal l'après-midi pour séchage.
-- Prendre en compte : orientation falaise, température, ensoleillement, heure.
-- Option « grimper de nuit » pour élargir les créneaux.
-- Seuils exacts à calibrer (à ne pas hard-coder, prévoir config utilisateur).
+Fichier principal : `src/utils/weatherLogic.ts`
 
-## Notifications
+- 1 appel Open-Meteo par secteur (lat/lng partagé entre sous-secteurs)
+- Cache en mémoire 1h (`src/services/openMeteo.ts` → `getCachedForecast`)
+- Score par créneau : `good` / `ok` / `bad`
+- `getSubSectorSummary(forecast, orientation)` → meilleur score sur 48h en tenant compte de l'orientation
 
-- Locales (économie batterie, pas de serveur push).
-- Importance normale, élevée si orage/tempête.
-- Opt-in/out par secteur et par critère.
+**Modificateur de température par orientation :**
+- N +4°C, NE +3°C, NW +2°C (plus froid, sèche lentement)
+- S -2°C, SW -2°C, SE -1°C (plus ensoleillé, sèche vite)
+- E/W ±0°C
 
-## Décisions en suspens
+## Navigation
 
-- Seuils météo exacts (vent, température, orientation, tolérance pluie).
-- Fenêtre d'analyse exacte (24 / 48 / 72h).
-- Structure des dossiers src (à faire lors de l'init réelle du projet).
-- CI/CD GitHub Actions (lint + tests + build Android).
-- SQLite : ajouter `react-native-sqlite-storage` quand nécessaire.
+```
+RootStack
+  ├── Tabs
+  │   ├── SectorList (onglet 1)
+  │   └── Map (onglet 2) — react-native-maps + bottom sheet
+  └── SectorDetail (stack, accessible depuis les deux onglets)
+```
 
 ## Roadmap
 
-- **v0** : recherche secteur par nom, favoris, notifications locales, logique météo minimale, Android.
-- **v1** : personnalisation fine des seuils, meilleure logique assèchement, iOS.
-- **v2** : Web (React Native Web), cartes, géoloc avancée, analytics opt-in.
+- **v0** : secteurs hardcodés, liste + carte (favoris), météo par sous-secteur, Android.
+- **v1** : Oblyk API (recherche secteurs), personnalisation seuils météo, iOS.
+- **v2** : géoloc "secteurs proches", notifications locales, analytics opt-in.
 
 ## Conventions
 
 - TypeScript strict, ESLint + Prettier.
 - Pas de clés/secrets dans le code — variables d'environnement uniquement.
-- Géolocalisation opt-in uniquement.
-- Langue UI : français en priorité, i18n prévu dès v1.
+- Géolocalisation opt-in uniquement (v2).
+- Langue UI : français en priorité.
+- Seuils météo dans des constantes nommées dans `weatherLogic.ts`, jamais hardcodés inline.

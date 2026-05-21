@@ -1,44 +1,73 @@
 import React from 'react';
+import {Text} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {Text} from 'react-native';
-import SearchScreen from '../screens/SearchScreen';
-import FavoritesScreen from '../screens/FavoritesScreen';
-import CragDetailScreen from '../screens/CragDetailScreen';
-import {Crag} from '../types/crag';
+import SectorListScreen from '../screens/SectorListScreen';
+import SectorDetailScreen from '../screens/SectorDetailScreen';
+import MapScreen from '../screens/MapScreen';
+import {theme} from '../theme';
 
 export type RootStackParamList = {
   Tabs: undefined;
-  Search: undefined;
-  Favorites: undefined;
-  CragDetail: {crag: Crag};
+  SectorDetail: {sectorId: string};
+};
+
+export type TabParamList = {
+  SectorList: undefined;
+  Map: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<TabParamList>();
+
+const {colors, typography} = theme;
+
+const NAV_THEME = {
+  dark: true,
+  colors: {
+    primary: colors.accent,
+    background: colors.background,
+    card: colors.surface,
+    text: colors.textPrimary,
+    border: colors.border,
+    notification: colors.accent,
+  },
+  fonts: {
+    regular: {fontFamily: 'System', fontWeight: '400' as const},
+    medium: {fontFamily: 'System', fontWeight: '500' as const},
+    bold: {fontFamily: 'System', fontWeight: '700' as const},
+    heavy: {fontFamily: 'System', fontWeight: '900' as const},
+  },
+};
 
 function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#3b82f6',
         headerShown: false,
+        tabBarStyle: {backgroundColor: colors.surface, borderTopColor: colors.border},
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textDisabled,
       }}>
       <Tab.Screen
-        name="SearchTab"
-        component={SearchScreen}
+        name="SectorList"
+        component={SectorListScreen}
         options={{
-          tabBarLabel: 'Recherche',
-          tabBarIcon: ({color}) => <Text style={{color, fontSize: 20}}>🔍</Text>,
+          tabBarLabel: 'Secteurs',
+          tabBarIcon: ({color}) => (
+            <Text style={{color, fontSize: 18}}>⛰</Text>
+          ),
         }}
       />
       <Tab.Screen
-        name="FavoritesTab"
-        component={FavoritesScreen}
+        name="Map"
+        component={MapScreen}
         options={{
-          tabBarLabel: 'Favoris',
-          tabBarIcon: ({color}) => <Text style={{color, fontSize: 20}}>★</Text>,
+          tabBarLabel: 'Carte',
+          tabBarIcon: ({color}) => (
+            <Text style={{color, fontSize: 18}}>🗺</Text>
+          ),
         }}
       />
     </Tab.Navigator>
@@ -47,17 +76,25 @@ function TabNavigator() {
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
+    <NavigationContainer theme={NAV_THEME}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {backgroundColor: colors.surface},
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: {
+            fontWeight: typography.weight.semibold,
+            color: colors.textPrimary,
+          },
+        }}>
         <Stack.Screen
           name="Tabs"
           component={TabNavigator}
           options={{headerShown: false}}
         />
         <Stack.Screen
-          name="CragDetail"
-          component={CragDetailScreen}
-          options={({route}) => ({title: route.params.crag.name})}
+          name="SectorDetail"
+          component={SectorDetailScreen}
+          options={{title: 'Secteur'}}
         />
       </Stack.Navigator>
     </NavigationContainer>
