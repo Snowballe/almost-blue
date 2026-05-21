@@ -1,37 +1,31 @@
 # Contexte du projet Almost Blue
 
-## Équipe
-- **Snoons** : Sysadmin (lead projet)
-- **Wawann** : Développeur React
+## Concept
 
-## Préférences de communication
-- **Réponses concises** - aller droit au but
-- Snoons est sysadmin, pas dev - adapter les explications
-- Wawann est dev React Front
-
-## Stack technique décidée
-- **Framework** : React Native + TypeScript
-- **Cible** : Android (priorité) → iOS → Web
-- **Pourquoi** : Wawann connaît React, meilleur support mobile que Electron
-
-## Décisions techniques
-- État : Context API / Redux Toolkit / Zustand (à confirmer)
-- Navigation : React Navigation
-- Storage : AsyncStorage (simple) + SQLite (complexe)
-- HTTP : axios ou fetch
-- Tests : Jest
+Application React Native qui alerte les grimpeurs outdoor quand une fenêtre météo favorable s'ouvre sur leurs secteurs d'escalade suivis, hors saison estivale.
 
 ## État d'avancement
-- ✅ README converti de Flutter vers React Native
-- ⏳ Projet pas encore initialisé
 
-## Prochaines étapes
-1. Init projet React Native
-2. Choisir lib gestion d'état
-3. Structure dossiers
-4. Setup environnement (.env)
+- ✅ Projet initialisé (RN 0.82 + TypeScript)
+- ✅ Architecture v0 en place et fonctionnelle sur Android
+- ✅ Thème dark crépusculaire
+- ✅ Secteurs hardcodés + store favoris
+- ✅ Carte OSM (MapLibre, sans clé API)
+- ✅ Météo par sous-secteur via Open-Meteo
+- ⏳ Saisie des vrais secteurs dans `src/data/sectors.ts`
+- ⏳ Affinage seuils météo
+- ⏳ Notifications locales
+
+## Décisions clés
+
+- Secteurs saisis à la main dans le code — pas d'API Oblyk pour v0
+- Hiérarchie : `Sector > SubSector` uniquement (pas de voies)
+- Orientation appartient au sous-secteur (même falaise = même orientation)
+- Grand site multi-expositions → deux `Sector` distincts
+- Géolocalisation reportée en v2 (batterie + permissions)
 
 ## Questions en suspens
-- Lib gestion d'état finale ?
-- Seuils météo exacts ?
-- Fenêtre analyse (24/48/72h) ?
+
+- Seuils météo exacts (vent, température, tolérance pluie)
+- Fenêtre d'analyse exacte (24 / 48 / 72h)
+- CI/CD GitHub Actions (lint + tests + build Android)

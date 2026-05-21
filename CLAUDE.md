@@ -12,9 +12,9 @@ Application React Native qui alerte les grimpeurs outdoor quand une fenêtre mé
 | Navigation | React Navigation (native-stack + bottom-tabs) |
 | HTTP | axios |
 | Carte | @maplibre/maplibre-react-native + tuiles OSM (sans clé) |
-| Bottom sheet | @gorhom/bottom-sheet v5 |
-| Animations | react-native-reanimated |
-| Gestes | react-native-gesture-handler |
+| Panneau carte | Animated RN custom (pas de lib externe) |
+| Animations | react-native-reanimated (dep transitive) |
+| Gestes | react-native-gesture-handler (dep transitive) |
 | Météo | Open-Meteo (gratuit, sans clé) |
 
 ## Palette — dark crépusculaire (référence : Chet Baker, "Almost Blue")
@@ -54,12 +54,6 @@ Copier `.env.example` → `.env`. Ne jamais committer `.env`.
 
 ```env
 OPEN_METEO_API_BASE_URL=https://api.open-meteo.com
-GOOGLE_MAPS_API_KEY=ta_cle_google_maps
-```
-
-La clé Google Maps doit aussi être dans `android/gradle.properties` :
-```
-GOOGLE_MAPS_API_KEY=ta_cle_google_maps
 ```
 
 ## Commandes utiles
@@ -93,7 +87,7 @@ Fichier principal : `src/utils/weatherLogic.ts`
 RootStack
   ├── Tabs
   │   ├── SectorList (onglet 1)
-  │   └── Map (onglet 2) — react-native-maps + bottom sheet
+  │   └── Map (onglet 2) — MapLibre OSM + panneau glissant Animated
   └── SectorDetail (stack, accessible depuis les deux onglets)
 ```
 
