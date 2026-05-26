@@ -52,20 +52,25 @@ export async function initNotificationChannel(): Promise<void> {
 function buildNotificationBody(
   sector: Sector,
   goodOrientations: GoodOrientation[],
+  totalOrientations: number,
 ): string {
+  // Toutes les orientations du secteur sont bonnes
+  if (goodOrientations.length === totalOrientations) {
+    return `Toutes les faces de ${sector.name} sont sèches !`;
+  }
+
   const faces = goodOrientations.map(
     g => ORIENTATION_FR[g.orientation] ?? g.orientation,
   );
   const subName = goodOrientations[0].subSectorName;
 
   if (faces.length === 1) {
-    return `La face ${faces[0]} de ${sector.name} est sèche ! Vous pouvez aller sur ${subName}.`;
+    return `La face ${faces[0]} de ${sector.name} est sèche. Allez sur ${subName}.`;
   }
 
-  // Plusieurs orientations : "La face Est, Sud et Ouest de X sont sèches !"
   const facesStr =
     faces.slice(0, -1).join(', ') + ' et ' + faces[faces.length - 1];
-  return `Les faces ${facesStr} de ${sector.name} sont sèches ! Vous pouvez aller sur ${subName}.`;
+  return `Les faces ${facesStr} de ${sector.name} sont sèches. Allez sur ${subName}.`;
 }
 
 // ── Envoi d'une notification ──────────────────────────────────────────────────
@@ -73,14 +78,14 @@ function buildNotificationBody(
 async function sendSectorNotification(
   sector: Sector,
   goodOrientations: GoodOrientation[],
+  totalOrientations: number,
 ): Promise<void> {
   await notifee.displayNotification({
-    title: 'Conditions favorables 🧗',
-    body: buildNotificationBody(sector, goodOrientations),
+    title: 'Conditions favorables',
+    body: buildNotificationBody(sector, goodOrientations, totalOrientations),
     android: {
       channelId: CHANNEL_ID,
       pressAction: {id: 'default'},
-      // smallIcon utilise le lanceur de l'app par défaut
     },
     ios: {
       sound: 'default',
@@ -97,7 +102,7 @@ async function sendSectorNotification(
 export async function sendTestNotification(): Promise<void> {
   await initNotificationChannel();
   await notifee.displayNotification({
-    title: 'Test Almost Blue 🧗',
+    title: 'Almost Blue',
     body: 'Les notifications fonctionnent correctement.',
     android: {
       channelId: CHANNEL_ID,
@@ -171,7 +176,7 @@ export async function checkAndNotify(force = false): Promise<void> {
     }
 
     if (newlyGood.length > 0) {
-      await sendSectorNotification(sector, newlyGood);
+      await sendSectorNotification(sector, newlyGood, orientationMap.size);
     }
   }
 
