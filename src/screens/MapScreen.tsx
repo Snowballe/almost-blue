@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   Animated,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -45,7 +46,7 @@ const SCORE_PIN_COLOR: Record<WeatherScore, string> = {
   bad: theme.colors.danger,
 };
 
-const SHEET_HEIGHT = 320;
+const SHEET_HEIGHT = 460;
 
 export default function MapScreen({navigation}: Props) {
   const [selected, setSelected] = useState<Sector | null>(null);
@@ -58,8 +59,8 @@ export default function MapScreen({navigation}: Props) {
     sectors.forEach(sector => {
       getCachedForecast(sector.latitude, sector.longitude)
         .then(forecast => {
-          const scores = sector.subSectors.map(ss =>
-            getSubSectorSummary(forecast, ss.orientation),
+          const scores = sector.subSectors.map(
+            ss => getSubSectorSummary(forecast, ss.orientation).score,
           );
           const best: WeatherScore = scores.includes('good')
             ? 'good'
@@ -137,7 +138,8 @@ export default function MapScreen({navigation}: Props) {
           <Animated.View
             style={[styles.sheet, {transform: [{translateY: slideAnim}]}]}>
             {selected && (
-              <>
+              <View style={styles.sheetInner}>
+                {/* ── En-tête fixe ── */}
                 <View style={styles.handle} />
 
                 <View style={styles.sheetHeader}>
@@ -158,7 +160,11 @@ export default function MapScreen({navigation}: Props) {
                   <Text style={styles.altitude}>{selected.altitude}m</Text>
                 )}
 
-                <View style={styles.subList}>
+                {/* ── Liste scrollable ── */}
+                <ScrollView
+                  style={styles.subList}
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}>
                   {selected.subSectors.map(ss => (
                     <View key={ss.id} style={styles.subRow}>
                       <Text style={styles.subName}>{ss.name}</Text>
@@ -167,15 +173,16 @@ export default function MapScreen({navigation}: Props) {
                       </Text>
                     </View>
                   ))}
-                </View>
+                </ScrollView>
 
+                {/* ── Bouton fixe en bas ── */}
                 <TouchableOpacity
                   style={styles.detailBtn}
                   onPress={handleNavigateToDetail}
                   activeOpacity={0.8}>
                   <Text style={styles.detailBtnText}>Voir le détail →</Text>
                 </TouchableOpacity>
-              </>
+              </View>
             )}
           </Animated.View>
         </>
@@ -210,9 +217,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  sheetInner: {
+    flex: 1,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
-    elevation: 8,
   },
   handle: {
     width: 36,
@@ -243,7 +254,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: spacing.md,
   },
-  subList: {marginBottom: spacing.lg},
+  subList: {flex: 1, marginBottom: spacing.md},
   subRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

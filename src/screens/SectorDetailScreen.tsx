@@ -12,7 +12,7 @@ import {sectors} from '../data/sectors';
 import {SubSector} from '../types/sector';
 import {getCachedForecast} from '../services/openMeteo';
 import {getSubSectorSummary} from '../utils/weatherLogic';
-import {WeatherForecast, WeatherScore} from '../types/weather';
+import {WeatherForecast, WeatherScore, SubSectorSummary} from '../types/weather';
 import {useSectorsStore} from '../stores/useSectorsStore';
 import {theme} from '../theme';
 import {RootStackParamList} from '../navigation/AppNavigator';
@@ -34,6 +34,16 @@ const ORIENTATION_LABEL: Record<string, string> = {
   S: '↓ S', SW: '↙ SW', W: '← W', NW: '↖ NW',
 };
 
+function formatWindow(
+  w: SubSectorSummary['nextGoodWindow'],
+): string | null {
+  if (!w) return null;
+  const d = new Date(`${w.date}T12:00`);
+  const day = d.toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric'});
+  if (w.startHour === w.endHour) return `${day} ${w.startHour}h`;
+  return `${day} ${w.startHour}h–${w.endHour}h`;
+}
+
 function SubSectorRow({
   subSector,
   forecast,
@@ -41,14 +51,19 @@ function SubSectorRow({
   subSector: SubSector;
   forecast: WeatherForecast | null;
 }) {
-  const score = forecast
+  const summary: SubSectorSummary | null = forecast
     ? getSubSectorSummary(forecast, subSector.orientation)
     : null;
+  const score = summary?.score ?? null;
+  const window = summary ? formatWindow(summary.nextGoodWindow) : null;
 
   return (
     <View style={styles.subRow}>
       <View style={styles.subRowInfo}>
         <Text style={styles.subRowName}>{subSector.name}</Text>
+        {window && score === 'good' ? (
+          <Text style={styles.subRowWindow}>{window}</Text>
+        ) : null}
         {subSector.notes ? (
           <Text style={styles.subRowNotes}>{subSector.notes}</Text>
         ) : null}
@@ -203,6 +218,12 @@ const styles = StyleSheet.create({
     color: colors.background,
     fontSize: typography.size.sm,
     fontWeight: typography.weight.semibold,
+  },
+  subRowWindow: {
+    fontSize: typography.size.sm,
+    color: theme.colors.good,
+    marginTop: 2,
+    fontWeight: typography.weight.medium,
   },
   loader: {marginTop: spacing.xl},
   errorText: {

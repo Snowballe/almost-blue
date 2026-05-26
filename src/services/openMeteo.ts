@@ -7,7 +7,9 @@ export interface OpenMeteoHourly {
   time: string[];
   temperature_2m: number[];
   windspeed_10m: number[];
+  winddirection_10m: number[];
   precipitation: number[];
+  precipitation_probability: number[];
   weathercode: number[];
 }
 
@@ -22,8 +24,14 @@ export async function fetchForecast(
     params: {
       latitude,
       longitude,
-      hourly:
-        'temperature_2m,windspeed_10m,precipitation,weathercode,precipitation_probability',
+      hourly: [
+        'temperature_2m',
+        'windspeed_10m',
+        'winddirection_10m',
+        'precipitation',
+        'precipitation_probability',
+        'weathercode',
+      ].join(','),
       forecast_days: 3,
       timezone: 'Europe/Paris',
     },
