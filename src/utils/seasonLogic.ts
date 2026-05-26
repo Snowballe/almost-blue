@@ -1,18 +1,16 @@
 /**
  * Logique de saison pour Almost Blue.
  *
- * Hors-saison par défaut : 22 septembre → 20 juin  (automne + hiver + printemps).
- * Été par défaut         : 21 juin      → 21 septembre → hibernation de l'app.
- *
- * Calé sur les équinoxes/solstices astronomiques (±1 jour pour arrondir).
+ * Hors-saison par défaut : 1er novembre → 31 mars (fin automne + hiver + début printemps).
+ * Hibernation par défaut : 1er avril    → 31 octobre (beau temps, pas besoin d'alertes).
  * Les fonctions acceptent des dates de début/fin optionnelles pour permettre
  * à l'utilisateur de personnaliser sa fenêtre hors-saison.
  */
 
 export type SeasonBound = {month: number; day: number};
 
-export const OFFSEASON_START: SeasonBound = {month:  9, day: 22}; // équinoxe d'automne
-export const OFFSEASON_END:   SeasonBound = {month:  6, day: 20}; // veille du solstice d'été
+export const OFFSEASON_START: SeasonBound = {month: 11, day:  1}; // 1er novembre
+export const OFFSEASON_END:   SeasonBound = {month:  3, day: 31}; // 31 mars
 
 /** Nombre maximum de jours dans un mois (sans contexte d'année — fév = 28). */
 export function maxDayForMonth(month: number): number {
