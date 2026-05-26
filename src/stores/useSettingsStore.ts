@@ -31,9 +31,9 @@ interface SettingsStore {
    * Le thème clair est prévu pour v1 — le toggle est présent mais sans effet actuellement.
    */
   colorScheme: ColorScheme;
-  /** Date de début de la hors-saison (par défaut : 15 octobre). */
+  /** Date de début de la hors-saison (par défaut : 22 septembre — équinoxe d'automne). */
   offseasonStart: SeasonBound;
-  /** Date de fin de la hors-saison (par défaut : 15 avril). */
+  /** Date de fin de la hors-saison (par défaut : 20 juin — veille du solstice d'été). */
   offseasonEnd: SeasonBound;
 
   setNotificationsEnabled: (value: boolean) => void;

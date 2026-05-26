@@ -403,7 +403,7 @@ export default function SettingsScreen() {
           onPress={resetOffseasonDates}
           activeOpacity={0.7}>
           <Text style={styles.resetText}>
-            Réinitialiser aux dates par défaut (15 oct. → 15 avr.)
+            Réinitialiser aux dates par défaut (22 sept. → 20 juin)
           </Text>
         </TouchableOpacity>
 
