@@ -9,7 +9,12 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {MaterialIcons} from '@react-native-vector-icons/material-icons/static';
-import {useSettingsStore} from '../stores/useSettingsStore';
+import {
+  useSettingsStore,
+  CHECK_INTERVALS,
+  CHECK_INTERVAL_LABELS,
+  CheckInterval,
+} from '../stores/useSettingsStore';
 import {isDegenerate} from '../utils/seasonLogic';
 import MonthDayPicker, {formatSeasonBound} from '../components/MonthDayPicker';
 import {theme} from '../theme';
@@ -76,13 +81,38 @@ function DateRow({label, value, onPress}: DateRowProps) {
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.dateRowRight}>
         <Text style={styles.dateValue}>{value}</Text>
-        <MaterialIcons
-          name="chevron-right"
-          size={20}
-          color={colors.textDisabled}
-        />
+        <MaterialIcons name="chevron-right" size={20} color={colors.textDisabled} />
       </View>
     </TouchableOpacity>
+  );
+}
+
+interface IntervalSelectorProps {
+  value: CheckInterval;
+  onChange: (v: CheckInterval) => void;
+}
+
+function IntervalSelector({value, onChange}: IntervalSelectorProps) {
+  return (
+    <View style={styles.intervalRow}>
+      <Text style={styles.rowLabel}>Fréquence de vérification</Text>
+      <View style={styles.chips}>
+        {CHECK_INTERVALS.map(interval => {
+          const active = interval === value;
+          return (
+            <TouchableOpacity
+              key={interval}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => onChange(interval)}
+              activeOpacity={0.7}>
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                {CHECK_INTERVAL_LABELS[interval]}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -92,13 +122,17 @@ type PickerTarget = 'start' | 'end' | null;
 
 export default function SettingsScreen() {
   const {
-    hibernationEnabled,
+    notificationsEnabled,
+    checkIntervalMinutes,
     notificationsInSummer,
+    hibernationEnabled,
     colorScheme,
     offseasonStart,
     offseasonEnd,
-    setHibernationEnabled,
+    setNotificationsEnabled,
+    setCheckIntervalMinutes,
     setNotificationsInSummer,
+    setHibernationEnabled,
     setColorScheme,
     setOffseasonStart,
     setOffseasonEnd,
@@ -106,14 +140,36 @@ export default function SettingsScreen() {
   } = useSettingsStore();
 
   const [pickerTarget, setPickerTarget] = useState<PickerTarget>(null);
-
   const datesAreDegen = isDegenerate(offseasonStart, offseasonEnd);
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+
+        {/* ── Notifications ── */}
+        <SectionHeader label="Notifications" />
+
+        <ToggleRow
+          label="Alertes météo"
+          description="Notifie quand les conditions deviennent favorables sur un secteur favori."
+          value={notificationsEnabled}
+          onValueChange={setNotificationsEnabled}
+        />
+
+        {notificationsEnabled && (
+          <>
+            <IntervalSelector
+              value={checkIntervalMinutes}
+              onChange={setCheckIntervalMinutes}
+            />
+            <ToggleRow
+              label="Alertes en été"
+              description="Envoie des alertes météo même en dehors de la hors-saison."
+              value={notificationsInSummer}
+              onValueChange={setNotificationsInSummer}
+            />
+          </>
+        )}
 
         {/* ── Saison ── */}
         <SectionHeader label="Saison" />
@@ -123,15 +179,6 @@ export default function SettingsScreen() {
           description="Affiche un écran de mise en veille hors de la fenêtre hors-saison."
           value={hibernationEnabled}
           onValueChange={setHibernationEnabled}
-        />
-
-        <ToggleRow
-          label="Notifications en été"
-          description="Envoie des alertes météo même hors saison habituelle."
-          value={notificationsInSummer}
-          onValueChange={setNotificationsInSummer}
-          disabled
-          disabledNote="Disponible en v2 — notifications pas encore implémentées."
         />
 
         {/* ── Fenêtre hors-saison ── */}
@@ -150,12 +197,7 @@ export default function SettingsScreen() {
 
         {datesAreDegen && (
           <View style={styles.warningBlock}>
-            <MaterialIcons
-              name="warning"
-              size={16}
-              color={colors.warning}
-              style={styles.warningIcon}
-            />
+            <MaterialIcons name="warning" size={16} color={colors.warning} style={styles.warningIcon} />
             <Text style={styles.warningText}>
               Début et fin identiques — toute l'année sera considérée hors-saison.
             </Text>
@@ -189,8 +231,7 @@ export default function SettingsScreen() {
         <View style={styles.aboutBlock}>
           <Text style={styles.aboutTitle}>Almost Blue</Text>
           <Text style={styles.aboutText}>
-            Conditions météo pour les grimpeurs·ses outdoor, en dehors de la
-            saison estivale.
+            Conditions météo pour les grimpeurs·ses outdoor, en dehors de la saison estivale.
           </Text>
           <Text style={styles.aboutText}>
             Données météo : Open-Meteo (open-meteo.com)
@@ -224,17 +265,10 @@ export default function SettingsScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingBottom: spacing.xxxl,
-  },
+  safe:      {flex: 1, backgroundColor: colors.background},
+  container: {flex: 1, backgroundColor: colors.background},
+  content:   {paddingBottom: spacing.xxxl},
+
   sectionHeader: {
     fontSize: typography.size.xs,
     fontWeight: typography.weight.semibold,
@@ -255,20 +289,14 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     gap: spacing.md,
   },
-  rowDisabled: {
-    opacity: 0.5,
-  },
-  rowText: {
-    flex: 1,
-  },
+  rowDisabled: {opacity: 0.5},
+  rowText: {flex: 1},
   rowLabel: {
     fontSize: typography.size.md,
     color: colors.textPrimary,
     fontWeight: typography.weight.medium,
   },
-  rowLabelDisabled: {
-    color: colors.textMuted,
-  },
+  rowLabelDisabled: {color: colors.textMuted},
   rowDescription: {
     fontSize: typography.size.sm,
     color: colors.textMuted,
@@ -290,6 +318,44 @@ const styles = StyleSheet.create({
     fontSize: typography.size.md,
     color: colors.textMuted,
   },
+
+  // ── Sélecteur de fréquence ──
+  intervalRow: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.sm,
+  },
+  chips: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: 'transparent',
+  },
+  chipActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent + '22',
+  },
+  chipText: {
+    fontSize: typography.size.sm,
+    color: colors.textMuted,
+    fontWeight: typography.weight.medium,
+  },
+  chipTextActive: {
+    color: colors.accent,
+  },
+
+  // ── Warning ──
   warningBlock: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -300,9 +366,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     gap: spacing.sm,
   },
-  warningIcon: {
-    marginTop: 1,
-  },
+  warningIcon: {marginTop: 1},
   warningText: {
     flex: 1,
     fontSize: typography.size.sm,
@@ -320,6 +384,8 @@ const styles = StyleSheet.create({
     color: colors.accent,
     textAlign: 'center',
   },
+
+  // ── À propos ──
   aboutBlock: {
     backgroundColor: colors.surface,
     padding: spacing.lg,
