@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -19,13 +19,173 @@ import {isDegenerate} from '../utils/seasonLogic';
 import MonthDayPicker, {formatSeasonBound} from '../components/MonthDayPicker';
 import {sendTestNotification, checkAndNotify} from '../services/notificationService';
 import {useNotificationStore} from '../stores/useNotificationStore';
-import {theme} from '../theme';
+import {useTheme, AppTheme} from '../theme';
 
-const {colors, spacing, typography} = theme;
+// ── Factory de styles ─────────────────────────────────────────────────────────
+
+function makeStyles(t: AppTheme) {
+  const {colors, spacing, typography} = t;
+  return StyleSheet.create({
+    safe:      {flex: 1, backgroundColor: colors.background},
+    container: {flex: 1, backgroundColor: colors.background},
+    content:   {paddingBottom: spacing.xxxl},
+
+    sectionHeader: {
+      fontSize: typography.size.xs,
+      fontWeight: typography.weight.semibold,
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xl,
+      paddingBottom: spacing.sm,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: spacing.md,
+    },
+    rowDisabled: {opacity: 0.5},
+    rowText: {flex: 1},
+    rowLabel: {
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+      fontWeight: typography.weight.medium,
+    },
+    rowLabelDisabled: {color: colors.textMuted},
+    rowDescription: {
+      fontSize: typography.size.sm,
+      color: colors.textMuted,
+      marginTop: 2,
+      lineHeight: 18,
+    },
+    rowNote: {
+      fontSize: typography.size.xs,
+      color: colors.accent,
+      marginTop: 4,
+      fontStyle: 'italic',
+    },
+    dateRowRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    dateValue: {
+      fontSize: typography.size.md,
+      color: colors.textMuted,
+    },
+
+    // ── Sélecteur de fréquence ──
+    intervalRow: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: spacing.sm,
+    },
+    chips: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      flexWrap: 'wrap',
+    },
+    chip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: 'transparent',
+    },
+    chipActive: {
+      borderColor: colors.accent,
+      backgroundColor: colors.accent + '22',
+    },
+    chipText: {
+      fontSize: typography.size.sm,
+      color: colors.textMuted,
+      fontWeight: typography.weight.medium,
+    },
+    chipTextActive: {
+      color: colors.accent,
+    },
+
+    // ── Warning ──
+    warningBlock: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.warning + '18',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: spacing.sm,
+    },
+    warningIcon: {marginTop: 1},
+    warningText: {
+      flex: 1,
+      fontSize: typography.size.sm,
+      color: colors.warning,
+      lineHeight: 18,
+    },
+    resetRow: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    resetText: {
+      fontSize: typography.size.sm,
+      color: colors.accent,
+      textAlign: 'center',
+    },
+
+    // ── Debug ──
+    debugBtn: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      alignItems: 'center',
+    },
+    debugBtnText: {
+      fontSize: typography.size.sm,
+      color: colors.textMuted,
+    },
+
+    // ── À propos ──
+    aboutBlock: {
+      backgroundColor: colors.surface,
+      padding: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: spacing.sm,
+    },
+    aboutTitle: {
+      fontSize: typography.size.md,
+      fontWeight: typography.weight.bold,
+      color: colors.textPrimary,
+    },
+    aboutText: {
+      fontSize: typography.size.sm,
+      color: colors.textMuted,
+      lineHeight: 18,
+    },
+  });
+}
+
+type Styles = ReturnType<typeof makeStyles>;
 
 // ── Sous-composants ────────────────────────────────────────────────────────────
 
-function SectionHeader({label}: {label: string}) {
+function SectionHeader({label, styles}: {label: string; styles: Styles}) {
   return <Text style={styles.sectionHeader}>{label}</Text>;
 }
 
@@ -36,6 +196,10 @@ interface ToggleRowProps {
   onValueChange: (v: boolean) => void;
   disabled?: boolean;
   disabledNote?: string;
+  styles: Styles;
+  borderColor: string;
+  accentColor: string;
+  thumbColor: string;
 }
 
 function ToggleRow({
@@ -45,6 +209,10 @@ function ToggleRow({
   onValueChange,
   disabled = false,
   disabledNote,
+  styles,
+  borderColor,
+  accentColor,
+  thumbColor,
 }: ToggleRowProps) {
   return (
     <View style={[styles.row, disabled && styles.rowDisabled]}>
@@ -63,9 +231,9 @@ function ToggleRow({
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
-        trackColor={{false: colors.border, true: colors.accent}}
-        thumbColor={colors.textPrimary}
-        ios_backgroundColor={colors.border}
+        trackColor={{false: borderColor, true: accentColor}}
+        thumbColor={thumbColor}
+        ios_backgroundColor={borderColor}
       />
     </View>
   );
@@ -75,15 +243,17 @@ interface DateRowProps {
   label: string;
   value: string;
   onPress: () => void;
+  styles: Styles;
+  chevronColor: string;
 }
 
-function DateRow({label, value, onPress}: DateRowProps) {
+function DateRow({label, value, onPress, styles, chevronColor}: DateRowProps) {
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.dateRowRight}>
         <Text style={styles.dateValue}>{value}</Text>
-        <MaterialIcons name="chevron-right" size={20} color={colors.textDisabled} />
+        <MaterialIcons name="chevron-right" size={20} color={chevronColor} />
       </View>
     </TouchableOpacity>
   );
@@ -92,9 +262,10 @@ function DateRow({label, value, onPress}: DateRowProps) {
 interface IntervalSelectorProps {
   value: CheckInterval;
   onChange: (v: CheckInterval) => void;
+  styles: Styles;
 }
 
-function IntervalSelector({value, onChange}: IntervalSelectorProps) {
+function IntervalSelector({value, onChange, styles}: IntervalSelectorProps) {
   return (
     <View style={styles.intervalRow}>
       <Text style={styles.rowLabel}>Fréquence de vérification</Text>
@@ -123,6 +294,10 @@ function IntervalSelector({value, onChange}: IntervalSelectorProps) {
 type PickerTarget = 'start' | 'end' | null;
 
 export default function SettingsScreen() {
+  const theme = useTheme();
+  const {colors} = theme;
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   const {
     notificationsEnabled,
     checkIntervalMinutes,
@@ -149,13 +324,17 @@ export default function SettingsScreen() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
         {/* ── Notifications ── */}
-        <SectionHeader label="Notifications" />
+        <SectionHeader label="Notifications" styles={styles} />
 
         <ToggleRow
           label="Alertes météo"
           description="Notifie quand les conditions deviennent favorables sur un secteur favori."
           value={notificationsEnabled}
           onValueChange={setNotificationsEnabled}
+          styles={styles}
+          borderColor={colors.border}
+          accentColor={colors.accent}
+          thumbColor={colors.textPrimary}
         />
 
         {notificationsEnabled && (
@@ -163,38 +342,51 @@ export default function SettingsScreen() {
             <IntervalSelector
               value={checkIntervalMinutes}
               onChange={setCheckIntervalMinutes}
+              styles={styles}
             />
             <ToggleRow
               label="Alertes en été"
               description="Envoie des alertes météo même en dehors de la hors-saison."
               value={notificationsInSummer}
               onValueChange={setNotificationsInSummer}
+              styles={styles}
+              borderColor={colors.border}
+              accentColor={colors.accent}
+              thumbColor={colors.textPrimary}
             />
           </>
         )}
 
         {/* ── Saison ── */}
-        <SectionHeader label="Saison" />
+        <SectionHeader label="Saison" styles={styles} />
 
         <ToggleRow
           label="Hibernation estivale"
           description="Affiche un écran de mise en veille hors de la fenêtre hors-saison."
           value={hibernationEnabled}
           onValueChange={setHibernationEnabled}
+          styles={styles}
+          borderColor={colors.border}
+          accentColor={colors.accent}
+          thumbColor={colors.textPrimary}
         />
 
         {/* ── Fenêtre hors-saison ── */}
-        <SectionHeader label="Fenêtre hors-saison" />
+        <SectionHeader label="Fenêtre hors-saison" styles={styles} />
 
         <DateRow
           label="Début"
           value={formatSeasonBound(offseasonStart)}
           onPress={() => setPickerTarget('start')}
+          styles={styles}
+          chevronColor={colors.textDisabled}
         />
         <DateRow
           label="Fin"
           value={formatSeasonBound(offseasonEnd)}
           onPress={() => setPickerTarget('end')}
+          styles={styles}
+          chevronColor={colors.textDisabled}
         />
 
         {datesAreDegen && (
@@ -216,19 +408,21 @@ export default function SettingsScreen() {
         </TouchableOpacity>
 
         {/* ── Apparence ── */}
-        <SectionHeader label="Apparence" />
+        <SectionHeader label="Apparence" styles={styles} />
 
         <ToggleRow
           label="Thème clair"
           description="Passe à une interface claire."
           value={colorScheme === 'light'}
           onValueChange={v => setColorScheme(v ? 'light' : 'dark')}
-          disabled
-          disabledNote="Disponible en v1 — thème clair en cours de développement."
+          styles={styles}
+          borderColor={colors.border}
+          accentColor={colors.accent}
+          thumbColor={colors.textPrimary}
         />
 
         {/* ── Debug ── */}
-        <SectionHeader label="Debug" />
+        <SectionHeader label="Debug" styles={styles} />
 
         <TouchableOpacity
           style={styles.debugBtn}
@@ -249,7 +443,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
 
         {/* ── À propos ── */}
-        <SectionHeader label="À propos" />
+        <SectionHeader label="À propos" styles={styles} />
 
         <View style={styles.aboutBlock}>
           <Text style={styles.aboutTitle}>Almost Blue</Text>
@@ -284,160 +478,3 @@ export default function SettingsScreen() {
     </SafeAreaView>
   );
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  safe:      {flex: 1, backgroundColor: colors.background},
-  container: {flex: 1, backgroundColor: colors.background},
-  content:   {paddingBottom: spacing.xxxl},
-
-  sectionHeader: {
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.semibold,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.md,
-  },
-  rowDisabled: {opacity: 0.5},
-  rowText: {flex: 1},
-  rowLabel: {
-    fontSize: typography.size.md,
-    color: colors.textPrimary,
-    fontWeight: typography.weight.medium,
-  },
-  rowLabelDisabled: {color: colors.textMuted},
-  rowDescription: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-    marginTop: 2,
-    lineHeight: 18,
-  },
-  rowNote: {
-    fontSize: typography.size.xs,
-    color: colors.accent,
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  dateRowRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  dateValue: {
-    fontSize: typography.size.md,
-    color: colors.textMuted,
-  },
-
-  // ── Sélecteur de fréquence ──
-  intervalRow: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.sm,
-  },
-  chips: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: 'transparent',
-  },
-  chipActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accent + '22',
-  },
-  chipText: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-    fontWeight: typography.weight.medium,
-  },
-  chipTextActive: {
-    color: colors.accent,
-  },
-
-  // ── Warning ──
-  warningBlock: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.warning + '18',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.sm,
-  },
-  warningIcon: {marginTop: 1},
-  warningText: {
-    flex: 1,
-    fontSize: typography.size.sm,
-    color: colors.warning,
-    lineHeight: 18,
-  },
-  resetRow: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  resetText: {
-    fontSize: typography.size.sm,
-    color: colors.accent,
-    textAlign: 'center',
-  },
-
-  // ── Debug ──
-  debugBtn: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    alignItems: 'center',
-  },
-  debugBtnText: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-  },
-
-  // ── À propos ──
-  aboutBlock: {
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.sm,
-  },
-  aboutTitle: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-  },
-  aboutText: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-});

@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
   ScrollView,
@@ -17,14 +17,13 @@ import {useSectorsStore} from '../stores/useSectorsStore';
 import {getCachedForecast} from '../services/openMeteo';
 import {getSubSectorSummary} from '../utils/weatherLogic';
 import {WeatherScore} from '../types/weather';
-import {theme} from '../theme';
+import {useTheme, AppTheme} from '../theme';
 import {RootStackParamList} from '../navigation/AppNavigator';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Tabs'>;
 };
 
-// [longitude, latitude] — GeoJSON / MapLibre order
 const FRANCE_CENTER: [number, number] = [2.3, 46.5];
 
 const OSM_STYLE: StyleSpecification = {
@@ -40,15 +39,110 @@ const OSM_STYLE: StyleSpecification = {
   layers: [{id: 'osm', type: 'raster', source: 'osm'}],
 };
 
-const SCORE_PIN_COLOR: Record<WeatherScore, string> = {
-  good: theme.colors.good,
-  ok: theme.colors.warning,
-  bad: theme.colors.danger,
-};
-
 const SHEET_HEIGHT = 460;
 
+function makeStyles(t: AppTheme) {
+  const {colors, spacing, typography} = t;
+  return StyleSheet.create({
+    container: {flex: 1},
+    map:       {flex: 1},
+    pin: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      borderWidth: 2.5,
+      borderColor: colors.white,
+      elevation: 3,
+    },
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    sheet: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: SHEET_HEIGHT,
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      elevation: 8,
+      overflow: 'hidden',
+    },
+    sheetInner: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.border,
+      alignSelf: 'center',
+      marginTop: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.xs,
+    },
+    sheetTitle: {
+      flex: 1,
+      fontSize: typography.size.lg,
+      fontWeight: typography.weight.bold,
+      color: colors.textPrimary,
+      marginRight: spacing.md,
+    },
+    favIcon:       {fontSize: 24, color: colors.textDisabled},
+    favIconActive: {color: colors.warning},
+    altitude: {
+      fontSize: typography.size.sm,
+      color: colors.textMuted,
+      marginBottom: spacing.md,
+    },
+    subList: {flex: 1, marginBottom: spacing.md},
+    subRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    subName:        {fontSize: typography.size.md, color: colors.textPrimary},
+    subOrientation: {
+      fontSize: typography.size.md,
+      color: colors.textMuted,
+      fontWeight: typography.weight.medium,
+    },
+    detailBtn: {
+      backgroundColor: colors.accent,
+      borderRadius: 10,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+    },
+    detailBtnText: {
+      color: colors.white,
+      fontSize: typography.size.md,
+      fontWeight: typography.weight.semibold,
+    },
+  });
+}
+
 export default function MapScreen({navigation}: Props) {
+  const theme = useTheme();
+  const {colors} = theme;
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
+  // Score → couleur de pin, calculé depuis les couleurs du thème actuel
+  const scorePinColor = useMemo<Record<WeatherScore, string>>(
+    () => ({good: colors.good, ok: colors.warning, bad: colors.danger}),
+    [colors],
+  );
+
   const [selected, setSelected] = useState<Sector | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [pinColors, setPinColors] = useState<Record<string, string>>({});
@@ -67,11 +161,11 @@ export default function MapScreen({navigation}: Props) {
             : scores.includes('ok')
             ? 'ok'
             : 'bad';
-          setPinColors(prev => ({...prev, [sector.id]: SCORE_PIN_COLOR[best]}));
+          setPinColors(prev => ({...prev, [sector.id]: scorePinColor[best]}));
         })
         .catch(() => {});
     });
-  }, []);
+  }, [scorePinColor]);
 
   const openSheet = useCallback(
     (sector: Sector) => {
@@ -110,9 +204,7 @@ export default function MapScreen({navigation}: Props) {
   return (
     <View style={styles.container}>
       <Map style={styles.map} mapStyle={OSM_STYLE}>
-        <Camera
-          initialViewState={{center: FRANCE_CENTER, zoom: 5}}
-        />
+        <Camera initialViewState={{center: FRANCE_CENTER, zoom: 5}} />
         {sectors.map(sector => (
           <ViewAnnotation
             key={sector.id}
@@ -122,7 +214,7 @@ export default function MapScreen({navigation}: Props) {
             <View
               style={[
                 styles.pin,
-                {backgroundColor: pinColors[sector.id] ?? theme.colors.accent},
+                {backgroundColor: pinColors[sector.id] ?? colors.accent},
               ]}
             />
           </ViewAnnotation>
@@ -139,7 +231,6 @@ export default function MapScreen({navigation}: Props) {
             style={[styles.sheet, {transform: [{translateY: slideAnim}]}]}>
             {selected && (
               <View style={styles.sheetInner}>
-                {/* ── En-tête fixe ── */}
                 <View style={styles.handle} />
 
                 <View style={styles.sheetHeader}>
@@ -149,8 +240,7 @@ export default function MapScreen({navigation}: Props) {
                   <TouchableOpacity
                     onPress={() => toggleFavorite(selected.id)}
                     hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-                    <Text
-                      style={[styles.favIcon, isFav && styles.favIconActive]}>
+                    <Text style={[styles.favIcon, isFav && styles.favIconActive]}>
                       {isFav ? '★' : '☆'}
                     </Text>
                   </TouchableOpacity>
@@ -160,7 +250,6 @@ export default function MapScreen({navigation}: Props) {
                   <Text style={styles.altitude}>{selected.altitude}m</Text>
                 )}
 
-                {/* ── Liste scrollable ── */}
                 <ScrollView
                   style={styles.subList}
                   showsVerticalScrollIndicator={false}
@@ -168,14 +257,11 @@ export default function MapScreen({navigation}: Props) {
                   {selected.subSectors.map(ss => (
                     <View key={ss.id} style={styles.subRow}>
                       <Text style={styles.subName}>{ss.name}</Text>
-                      <Text style={styles.subOrientation}>
-                        {ss.orientation}
-                      </Text>
+                      <Text style={styles.subOrientation}>{ss.orientation}</Text>
                     </View>
                   ))}
                 </ScrollView>
 
-                {/* ── Bouton fixe en bas ── */}
                 <TouchableOpacity
                   style={styles.detailBtn}
                   onPress={handleNavigateToDetail}
@@ -190,93 +276,3 @@ export default function MapScreen({navigation}: Props) {
     </View>
   );
 }
-
-const {colors, spacing, typography} = theme;
-
-const styles = StyleSheet.create({
-  container: {flex: 1},
-  map: {flex: 1},
-  pin: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2.5,
-    borderColor: colors.white,
-    elevation: 3,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: SHEET_HEIGHT,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    elevation: 8,
-    overflow: 'hidden',
-  },
-  sheetInner: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  sheetTitle: {
-    flex: 1,
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-    marginRight: spacing.md,
-  },
-  favIcon: {fontSize: 24, color: colors.textDisabled},
-  favIconActive: {color: colors.warning},
-  altitude: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  subList: {flex: 1, marginBottom: spacing.md},
-  subRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  subName: {fontSize: typography.size.md, color: colors.textPrimary},
-  subOrientation: {
-    fontSize: typography.size.md,
-    color: colors.textMuted,
-    fontWeight: typography.weight.medium,
-  },
-  detailBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  detailBtnText: {
-    color: colors.white,
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
-  },
-});

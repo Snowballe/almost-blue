@@ -12,23 +12,68 @@ import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {sectors} from '../data/sectors';
 import {Sector} from '../types/sector';
 import {useSectorsStore} from '../stores/useSectorsStore';
-import {theme} from '../theme';
+import {useTheme, Colors, AppTheme} from '../theme';
 import {RootStackParamList} from '../navigation/AppNavigator';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Tabs'>;
 };
 
+function makeStyles(t: AppTheme) {
+  const {colors, spacing, typography} = t;
+  return StyleSheet.create({
+    container:     {flex: 1, backgroundColor: colors.background},
+    list:          {paddingBottom: spacing.xxxl},
+    sectionHeader: {
+      fontSize: typography.size.xs,
+      fontWeight: typography.weight.semibold,
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xl,
+      paddingBottom: spacing.sm,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    rowInfo:      {flex: 1},
+    rowName: {
+      fontSize: typography.size.md,
+      fontWeight: typography.weight.semibold,
+      color: colors.textPrimary,
+    },
+    rowMeta: {
+      fontSize: typography.size.sm,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    favBtn:         {paddingLeft: spacing.md},
+    favIcon:        {fontSize: 22, color: colors.textDisabled},
+    favIconActive:  {color: colors.warning},
+  });
+}
+
 function SectorRow({
   sector,
   onPress,
   isFav,
   onToggleFav,
+  colors,
+  styles,
 }: {
   sector: Sector;
   onPress: () => void;
   isFav: boolean;
   onToggleFav: () => void;
+  colors: Colors;
+  styles: ReturnType<typeof makeStyles>;
 }) {
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
@@ -53,13 +98,16 @@ function SectorRow({
 }
 
 export default function SectorListScreen({navigation}: Props) {
+  const theme = useTheme();
+  const {colors} = theme;
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const {favoriteIds, toggleFavorite, isFavorite} = useSectorsStore();
 
   const {favorites, others} = useMemo(() => {
     const favSet = new Set(favoriteIds);
     return {
       favorites: sectors.filter(s => favSet.has(s.id)),
-      others: sectors.filter(s => !favSet.has(s.id)),
+      others:    sectors.filter(s => !favSet.has(s.id)),
     };
   }, [favoriteIds]);
 
@@ -83,6 +131,8 @@ export default function SectorListScreen({navigation}: Props) {
       isFav={isFavorite(item.id)}
       onPress={() => navigation.navigate('SectorDetail', {sectorId: item.id})}
       onToggleFav={() => toggleFavorite(item.id)}
+      colors={colors}
+      styles={styles}
     />
   );
 
@@ -101,43 +151,3 @@ export default function SectorListScreen({navigation}: Props) {
     </View>
   );
 }
-
-const {colors, spacing, typography} = theme;
-
-const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: colors.background},
-  list: {paddingBottom: spacing.xxxl},
-  sectionHeader: {
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.semibold,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  rowInfo: {flex: 1},
-  rowName: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
-    color: colors.textPrimary,
-  },
-  rowMeta: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  favBtn: {paddingLeft: spacing.md},
-  favIcon: {fontSize: 22, color: colors.textDisabled},
-  favIconActive: {color: colors.warning},
-});

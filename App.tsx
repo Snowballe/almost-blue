@@ -1,6 +1,7 @@
 import React from 'react';
 import {StyleSheet} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import {ThemeProvider} from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 import {useNotificationSetup} from './src/hooks/useNotificationSetup';
 
@@ -12,7 +13,9 @@ function AppContent() {
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
-      <AppContent />
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }
