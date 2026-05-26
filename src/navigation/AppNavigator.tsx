@@ -1,11 +1,16 @@
-import React from 'react';
-import {Text} from 'react-native';
+import React, {useState} from 'react';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {MaterialIcons} from '@react-native-vector-icons/material-icons/static';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import SectorListScreen from '../screens/SectorListScreen';
 import SectorDetailScreen from '../screens/SectorDetailScreen';
 import MapScreen from '../screens/MapScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import HibernationScreen from '../screens/HibernationScreen';
+import {isOffSeason} from '../utils/seasonLogic';
+import {useSettingsStore} from '../stores/useSettingsStore';
 import {theme} from '../theme';
 
 export type RootStackParamList = {
@@ -16,6 +21,7 @@ export type RootStackParamList = {
 export type TabParamList = {
   SectorList: undefined;
   Map: undefined;
+  Settings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -55,8 +61,8 @@ function TabNavigator() {
         component={SectorListScreen}
         options={{
           tabBarLabel: 'Secteurs',
-          tabBarIcon: ({color}) => (
-            <Text style={{color, fontSize: 18}}>⛰</Text>
+          tabBarIcon: ({color, size}) => (
+            <MaterialIcons name="terrain" color={color} size={size} />
           ),
         }}
       />
@@ -65,9 +71,27 @@ function TabNavigator() {
         component={MapScreen}
         options={{
           tabBarLabel: 'Carte',
-          tabBarIcon: ({color}) => (
-            <Text style={{color, fontSize: 18}}>🗺</Text>
+          tabBarIcon: ({color, size}) => (
+            <MaterialIcons name="map" color={color} size={size} />
           ),
+        }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          tabBarLabel: 'Réglages',
+          tabBarIcon: ({color, size}) => (
+            <MaterialIcons name="settings" color={color} size={size} />
+          ),
+          headerShown: true,
+          headerStyle: {backgroundColor: colors.surface},
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: {
+            fontWeight: typography.weight.semibold,
+            color: colors.textPrimary,
+          },
+          headerTitle: 'Réglages',
         }}
       />
     </Tab.Navigator>
@@ -75,6 +99,24 @@ function TabNavigator() {
 }
 
 export default function AppNavigator() {
+  // Non persisté : l'utilisateur revoit l'écran d'hibernation à chaque lancement
+  const [overrideHibernation, setOverrideHibernation] = useState(false);
+  const hibernationEnabled = useSettingsStore(s => s.hibernationEnabled);
+  const offseasonStart = useSettingsStore(s => s.offseasonStart);
+  const offseasonEnd = useSettingsStore(s => s.offseasonEnd);
+  const hibernating =
+    hibernationEnabled &&
+    !isOffSeason(new Date(), offseasonStart, offseasonEnd) &&
+    !overrideHibernation;
+
+  if (hibernating) {
+    return (
+      <SafeAreaProvider>
+        <HibernationScreen onOverride={() => setOverrideHibernation(true)} />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <NavigationContainer theme={NAV_THEME}>
       <Stack.Navigator
