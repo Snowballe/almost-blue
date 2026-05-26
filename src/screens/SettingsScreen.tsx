@@ -17,6 +17,8 @@ import {
 } from '../stores/useSettingsStore';
 import {isDegenerate} from '../utils/seasonLogic';
 import MonthDayPicker, {formatSeasonBound} from '../components/MonthDayPicker';
+import {sendTestNotification, checkAndNotify} from '../services/notificationService';
+import {useNotificationStore} from '../stores/useNotificationStore';
 import {theme} from '../theme';
 
 const {colors, spacing, typography} = theme;
@@ -225,6 +227,27 @@ export default function SettingsScreen() {
           disabledNote="Disponible en v1 — thème clair en cours de développement."
         />
 
+        {/* ── Debug ── */}
+        <SectionHeader label="Debug" />
+
+        <TouchableOpacity
+          style={styles.debugBtn}
+          onPress={() => sendTestNotification()}
+          activeOpacity={0.7}>
+          <Text style={styles.debugBtnText}>Envoyer une notif de test</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.debugBtn}
+          onPress={async () => {
+            // Reset les scores pour forcer la détection de transition, puis check forcé
+            useNotificationStore.getState().clearScores();
+            await checkAndNotify(true); // force=true → ignore saison + toggle
+          }}
+          activeOpacity={0.7}>
+          <Text style={styles.debugBtnText}>Forcer un check météo (ignore la saison)</Text>
+        </TouchableOpacity>
+
         {/* ── À propos ── */}
         <SectionHeader label="À propos" />
 
@@ -383,6 +406,20 @@ const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     color: colors.accent,
     textAlign: 'center',
+  },
+
+  // ── Debug ──
+  debugBtn: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    alignItems: 'center',
+  },
+  debugBtnText: {
+    fontSize: typography.size.sm,
+    color: colors.textMuted,
   },
 
   // ── À propos ──

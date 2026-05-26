@@ -88,6 +88,25 @@ async function sendSectorNotification(
   });
 }
 
+// ── Notification de test ──────────────────────────────────────────────────────
+
+/**
+ * Envoie une notif factice pour vérifier que le canal et les permissions
+ * fonctionnent, sans dépendre de la météo ou de la saison.
+ */
+export async function sendTestNotification(): Promise<void> {
+  await initNotificationChannel();
+  await notifee.displayNotification({
+    title: 'Test Almost Blue 🧗',
+    body: 'Les notifications fonctionnent correctement.',
+    android: {
+      channelId: CHANNEL_ID,
+      pressAction: {id: 'default'},
+    },
+    ios: {sound: 'default'},
+  });
+}
+
 // ── Vérification principale ───────────────────────────────────────────────────
 
 /**
@@ -95,7 +114,7 @@ async function sendSectorNotification(
  * Compare les scores actuels aux derniers scores connus et envoie des notifs
  * pour les transitions !good → good sur les secteurs favoris.
  */
-export async function checkAndNotify(): Promise<void> {
+export async function checkAndNotify(force = false): Promise<void> {
   // Attendre l'hydratation des stores (important en contexte headless)
   await Promise.all([
     useSettingsStore.persist.rehydrate(),
@@ -107,11 +126,11 @@ export async function checkAndNotify(): Promise<void> {
   const {notificationsEnabled, offseasonStart, offseasonEnd, notificationsInSummer} =
     settings;
 
-  if (!notificationsEnabled) return;
+  if (!force && !notificationsEnabled) return;
 
-  // Respecter la saisonnalité : pas de notifs en été sauf si activé
+  // Respecter la saisonnalité : pas de notifs en été sauf si activé ou forcé
   const offSeason = isOffSeason(new Date(), offseasonStart, offseasonEnd);
-  if (!offSeason && !notificationsInSummer) return;
+  if (!force && !offSeason && !notificationsInSummer) return;
 
   const {favoriteIds} = useSectorsStore.getState();
   if (favoriteIds.length === 0) return;
