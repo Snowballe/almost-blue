@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -118,6 +118,19 @@ function makeStyles(t: AppTheme) {
     },
     loader:     {marginTop: spacing.xl},
     errorText:  {textAlign: 'center', color: colors.danger, margin: spacing.lg},
+    retryBtn: {
+      alignSelf: 'center',
+      marginTop: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    retryText: {
+      fontSize: typography.size.sm,
+      color: colors.textMuted,
+    },
     headerFav:  {fontSize: 22, color: colors.warning, marginRight: spacing.md},
   });
 }
@@ -174,7 +187,9 @@ export default function SectorDetailScreen({route, navigation}: Props) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const {sectorId} = route.params;
-  const sector = sectors.find(s => s.id === sectorId)!;
+  // On n'utilise pas de non-null assertion (!) : un deep link malformé ou un ID
+  // supprimé de sectors.ts retournerait undefined et crasherait l'app.
+  const sector = sectors.find(s => s.id === sectorId) ?? null;
   const {isFavorite, toggleFavorite} = useSectorsStore();
   const isFav = isFavorite(sectorId);
 
@@ -182,7 +197,14 @@ export default function SectorDetailScreen({route, navigation}: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  // Extraction en callback pour permettre le retry manuel depuis l'UI.
+  const loadForecast = useCallback(() => {
+    if (!sector) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(false);
     getCachedForecast(sector.latitude, sector.longitude)
       .then(setForecast)
       .catch(() => setError(true))
@@ -190,15 +212,30 @@ export default function SectorDetailScreen({route, navigation}: Props) {
   }, [sector]);
 
   useEffect(() => {
+    loadForecast();
+  }, [loadForecast]);
+
+  useEffect(() => {
     navigation.setOptions({
-      title: sector.name,
-      headerRight: () => (
-        <TouchableOpacity onPress={() => toggleFavorite(sectorId)}>
-          <Text style={styles.headerFav}>{isFav ? '★' : '☆'}</Text>
-        </TouchableOpacity>
-      ),
+      title: sector?.name ?? 'Secteur',
+      headerRight: sector
+        ? () => (
+            <TouchableOpacity onPress={() => toggleFavorite(sectorId)}>
+              <Text style={styles.headerFav}>{isFav ? '★' : '☆'}</Text>
+            </TouchableOpacity>
+          )
+        : undefined,
     });
   }, [navigation, sector, isFav, toggleFavorite, sectorId, styles]);
+
+  // Rendu de secours si le secteur est introuvable (deep link invalide, etc.)
+  if (!sector) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Secteur introuvable.</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -220,7 +257,12 @@ export default function SectorDetailScreen({route, navigation}: Props) {
         <ActivityIndicator style={styles.loader} color={colors.accent} />
       )}
       {error && (
-        <Text style={styles.errorText}>Météo indisponible.</Text>
+        <>
+          <Text style={styles.errorText}>Météo indisponible.</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={loadForecast}>
+            <Text style={styles.retryText}>Réessayer</Text>
+          </TouchableOpacity>
+        </>
       )}
 
       {sector.subSectors.map(ss => (

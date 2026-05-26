@@ -113,7 +113,9 @@ function scoreSlotForOrientation(
   }
 
   // 4. Température effective (correctif selon orientation)
-  const tempAdjust = ORIENTATION_TEMP_ADJUST[orientation];
+  // ?? 0 : fallback défensif si une orientation invalide arrivait depuis
+  // AsyncStorage corrompu — évite un NaN qui désactiverait silencieusement le check.
+  const tempAdjust = ORIENTATION_TEMP_ADJUST[orientation] ?? 0;
   const effectiveMinTemp = MIN_TEMP + tempAdjust;
   if (slot.temperature < effectiveMinTemp) {
     reasons.push(`Température trop basse (${slot.temperature.toFixed(0)}°C)`);
@@ -201,6 +203,37 @@ export function buildForecast(hourly: OpenMeteoHourly): WeatherForecast {
   return {slots, source: 'open-meteo', fetchedAt: new Date().toISOString()};
 }
 
+// ─── Utilitaire timezone ──────────────────────────────────────────────────────
+
+/**
+ * Convertit une date + heure exprimées en heure locale Europe/Paris
+ * (timezone renvoyée par l'API Open-Meteo) vers un timestamp UTC en ms.
+ *
+ * Sans cette conversion, `new Date('2026-05-26T14:00')` serait interprété
+ * comme l'heure locale du device, ce qui décale tous les créneaux de 1 à 2h
+ * sur un émulateur en UTC ou sur un device hors de France.
+ *
+ * Algorithme : on calcule l'offset Paris/UTC à midi UTC ce jour-là (hors de
+ * toute transition DST), puis on l'applique à l'heure voulue.
+ */
+function parisLocalToUTC(dateStr: string, hour: number): number {
+  // Référence : UTC midi ce jour → heure Paris correspondante → offset DST
+  const refUTC = new Date(`${dateStr}T12:00:00Z`).getTime();
+  const parisNoon =
+    parseInt(
+      new Date(refUTC).toLocaleString('en-US', {
+        timeZone: 'Europe/Paris',
+        hour: '2-digit',
+        hour12: false,
+      }),
+      10,
+    ) % 24; // % 24 pour couvrir le cas "24" que certains moteurs JS émettent
+  const parisOffsetH = parisNoon - 12; // +1 hiver (CET), +2 été (CEST)
+
+  const utcMidnight = new Date(`${dateStr}T00:00:00Z`).getTime();
+  return utcMidnight + (hour - parisOffsetH) * 60 * 60 * 1000;
+}
+
 // ─── Résumé par sous-secteur ──────────────────────────────────────────────────
 
 /**
@@ -219,9 +252,8 @@ export function getSubSectorSummary(
 
   const relevant = forecast.slots.filter(slot => {
     if (slot.hour < 7 || slot.hour > 20) return false;
-    const ts = new Date(
-      `${slot.date}T${String(slot.hour).padStart(2, '0')}:00`,
-    ).getTime();
+    // Convertir l'heure Paris (timezone API) en UTC avant de comparer à Date.now()
+    const ts = parisLocalToUTC(slot.date, slot.hour);
     return ts > now && ts < cutoff;
   });
 
@@ -254,7 +286,9 @@ export function getSubSectorSummary(
       nextGoodWindow = {
         date: first.date,
         startHour: first.hour,
-        endHour:   last.hour,
+        // +1 car last.hour est l'heure de DÉBUT du dernier créneau good ;
+        // un créneau à 17h couvre 17h00–18h00, donc la fenêtre se termine à 18h.
+        endHour: last.hour + 1,
       };
       break;
     }

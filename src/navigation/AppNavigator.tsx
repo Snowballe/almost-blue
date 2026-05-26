@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect} from 'react';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {MaterialIcons} from '@react-native-vector-icons/material-icons/static';
 import {NavigationContainer} from '@react-navigation/native';
@@ -91,14 +91,23 @@ export default function AppNavigator() {
   const {colors, typography} = useTheme();
   const colorScheme = useSettingsStore(s => s.colorScheme);
 
-  const [overrideHibernation, setOverrideHibernation] = useState(false);
   const hibernationEnabled = useSettingsStore(s => s.hibernationEnabled);
   const offseasonStart = useSettingsStore(s => s.offseasonStart);
   const offseasonEnd = useSettingsStore(s => s.offseasonEnd);
-  const hibernating =
-    hibernationEnabled &&
-    !isOffSeason(new Date(), offseasonStart, offseasonEnd) &&
-    !overrideHibernation;
+  // Override persisté : survit aux redémarrages de l'app.
+  // Il se réinitialise automatiquement dès qu'on entre en hors-saison,
+  // afin que l'écran d'hibernation réapparaisse la saison suivante.
+  const overrideHibernation = useSettingsStore(s => s.overrideHibernation);
+  const setOverrideHibernation = useSettingsStore(s => s.setOverrideHibernation);
+
+  const inOffSeason = isOffSeason(new Date(), offseasonStart, offseasonEnd);
+  useEffect(() => {
+    if (inOffSeason && overrideHibernation) {
+      setOverrideHibernation(false);
+    }
+  }, [inOffSeason, overrideHibernation, setOverrideHibernation]);
+
+  const hibernating = hibernationEnabled && !inOffSeason && !overrideHibernation;
 
   const navTheme = {
     dark: colorScheme === 'dark',

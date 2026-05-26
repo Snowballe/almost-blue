@@ -36,6 +36,13 @@ interface SettingsStore {
   /** Date de fin de la hors-saison (par défaut : 31 mars). */
   offseasonEnd: SeasonBound;
 
+  /**
+   * L'utilisateur a cliqué "Continuer quand même" sur l'écran d'hibernation.
+   * Persisté pour survivre aux redémarrages de l'app ; réinitialisé
+   * automatiquement au retour de la hors-saison (automne/hiver).
+   */
+  overrideHibernation: boolean;
+
   setNotificationsEnabled: (value: boolean) => void;
   setCheckIntervalMinutes: (value: CheckInterval) => void;
   setNotificationsInSummer: (value: boolean) => void;
@@ -44,6 +51,7 @@ interface SettingsStore {
   setOffseasonStart: (value: SeasonBound) => void;
   setOffseasonEnd: (value: SeasonBound) => void;
   resetOffseasonDates: () => void;
+  setOverrideHibernation: (value: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -56,6 +64,7 @@ export const useSettingsStore = create<SettingsStore>()(
       colorScheme: 'dark',
       offseasonStart: OFFSEASON_START,
       offseasonEnd: OFFSEASON_END,
+      overrideHibernation: false,
 
       setNotificationsEnabled: value => set({notificationsEnabled: value}),
       setCheckIntervalMinutes: value => set({checkIntervalMinutes: value}),
@@ -66,6 +75,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setOffseasonEnd: value => set({offseasonEnd: value}),
       resetOffseasonDates: () =>
         set({offseasonStart: OFFSEASON_START, offseasonEnd: OFFSEASON_END}),
+      setOverrideHibernation: value => set({overrideHibernation: value}),
     }),
     {
       name: 'settings-store',

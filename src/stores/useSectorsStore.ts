@@ -15,17 +15,24 @@ export const useSectorsStore = create<SectorsStore>()(
     (set, get) => ({
       favoriteIds: [],
       addFavorite: id =>
-        set(s => ({favoriteIds: [...s.favoriteIds, id]})),
+        // Déduplication : on n'ajoute que si l'ID n'est pas déjà présent,
+        // ce qui évite les doublons en cas de double-tap ou d'appel concurrent.
+        set(s =>
+          s.favoriteIds.includes(id)
+            ? s
+            : {favoriteIds: [...s.favoriteIds, id]},
+        ),
       removeFavorite: id =>
         set(s => ({favoriteIds: s.favoriteIds.filter(f => f !== id)})),
       isFavorite: id => get().favoriteIds.includes(id),
-      toggleFavorite: id => {
-        if (get().isFavorite(id)) {
-          get().removeFavorite(id);
-        } else {
-          get().addFavorite(id);
-        }
-      },
+      // toggleFavorite atomique : la lecture ET l'écriture se font dans le même
+      // set() pour éviter un antipattern read-then-write hors de set().
+      toggleFavorite: id =>
+        set(s => ({
+          favoriteIds: s.favoriteIds.includes(id)
+            ? s.favoriteIds.filter(f => f !== id)
+            : [...s.favoriteIds, id],
+        })),
     }),
     {
       name: 'sectors-store',

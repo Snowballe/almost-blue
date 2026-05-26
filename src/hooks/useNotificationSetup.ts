@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect, useRef} from 'react';
 import BackgroundFetch from 'react-native-background-fetch';
 import notifee, {AuthorizationStatus} from '@notifee/react-native';
 import {checkAndNotify, initNotificationChannel} from '../services/notificationService';
@@ -16,6 +16,11 @@ import {useSettingsStore} from '../stores/useSettingsStore';
 export function useNotificationSetup(): void {
   const checkIntervalMinutes = useSettingsStore(s => s.checkIntervalMinutes);
   const notificationsEnabled = useSettingsStore(s => s.notificationsEnabled);
+
+  // Guard contre les appels concurrents à checkAndNotify.
+  // Sans ce verrou, un changement rapide de settings (ou un re-rendu)
+  // pourrait accumuler plusieurs checks simultanés en mémoire.
+  const checkInProgress = useRef(false);
 
   // Initialisation unique : canal + permission
   useEffect(() => {
@@ -56,7 +61,23 @@ export function useNotificationSetup(): void {
       },
     );
 
-    // Lancer un check immédiat lors de l'ouverture de l'app (en plus du background)
-    checkAndNotify().catch(() => {});
+    // Lancer un check immédiat lors de l'ouverture de l'app (en plus du background).
+    // Le verrou checkInProgress évite d'empiler plusieurs checks si l'effet
+    // se re-déclenche (changement de settings) avant que le précédent soit fini.
+    async function runImmediateCheck() {
+      if (checkInProgress.current) {
+        return;
+      }
+      checkInProgress.current = true;
+      try {
+        await checkAndNotify();
+      } catch {
+        // Erreur réseau ou autre → on ignore silencieusement,
+        // le background fetch réessaiera selon l'intervalle configuré.
+      } finally {
+        checkInProgress.current = false;
+      }
+    }
+    runImmediateCheck();
   }, [checkIntervalMinutes, notificationsEnabled]);
 }

@@ -4,6 +4,7 @@ import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {ThemeProvider} from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 import {useNotificationSetup} from './src/hooks/useNotificationSetup';
+import {ErrorBoundary} from './src/components/ErrorBoundary';
 
 function AppContent() {
   useNotificationSetup();
@@ -13,9 +14,13 @@ function AppContent() {
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
+      {/* ErrorBoundary global : capture toute exception React non gérée
+          et affiche un écran de récupération plutôt qu'un crash total. */}
+      <ErrorBoundary>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

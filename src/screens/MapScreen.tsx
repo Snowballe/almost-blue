@@ -193,11 +193,20 @@ export default function MapScreen({navigation}: Props) {
 
   const handleNavigateToDetail = useCallback(() => {
     if (!selected) return;
-    closeSheet();
-    setTimeout(() => {
-      navigation.navigate('SectorDetail', {sectorId: selected.id});
-    }, 230);
-  }, [selected, navigation, closeSheet]);
+    // On capture l'id AVANT de lancer l'animation, car closeSheet() va null-ifier
+    // `selected` dans son callback — et setTimeout avec un délai magique n'est pas
+    // fiable sur les devices lents. On utilise le callback natif de l'animation.
+    const sectorId = selected.id;
+    Animated.timing(slideAnim, {
+      toValue: SHEET_HEIGHT,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      setSheetVisible(false);
+      setSelected(null);
+      navigation.navigate('SectorDetail', {sectorId});
+    });
+  }, [selected, navigation, slideAnim]);
 
   const isFav = selected ? isFavorite(selected.id) : false;
 

@@ -120,8 +120,11 @@ export async function sendTestNotification(): Promise<void> {
  * pour les transitions !good → good sur les secteurs favoris.
  */
 export async function checkAndNotify(force = false): Promise<void> {
-  // Attendre l'hydratation des stores (important en contexte headless)
-  await Promise.all([
+  // Attendre l'hydratation des stores (important en contexte headless).
+  // Promise.allSettled (et non Promise.all) pour qu'un échec d'un store
+  // n'annule pas les deux autres — l'app reste fonctionnelle même si
+  // AsyncStorage est partiellement corrompu.
+  await Promise.allSettled([
     useSettingsStore.persist.rehydrate(),
     useSectorsStore.persist.rehydrate(),
     useNotificationStore.persist.rehydrate(),

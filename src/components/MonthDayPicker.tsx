@@ -124,11 +124,15 @@ function PickerColumn({data, selected, onSelect, styles, accentColor}: ColumnPro
 
   useEffect(() => {
     const idx = data.findIndex(d => d.value === selected);
-    if (idx >= 0) {
-      setTimeout(() => {
-        ref.current?.scrollToIndex({index: idx, animated: true, viewPosition: 0.5});
-      }, 80);
+    if (idx < 0) {
+      return;
     }
+    // Cleanup indispensable : si le composant est démonté dans les 80 ms,
+    // scrollToIndex s'exécuterait sur un ref stale.
+    const timer = setTimeout(() => {
+      ref.current?.scrollToIndex({index: idx, animated: true, viewPosition: 0.5});
+    }, 80);
+    return () => clearTimeout(timer);
   }, [selected, data]);
 
   return (

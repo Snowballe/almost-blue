@@ -1,6 +1,9 @@
 import {Sector} from '../types/sector';
 
 export const sectors: Sector[] = [
+  // NOTE : pour ajouter un site avec des expositions multiples très différentes
+  // (ex. falaise E + face W distantes), créer deux Sector distincts plutôt
+  // qu'un seul avec plusieurs SubSectors opposés.
   {
     id: 'pointe-de-primel',
     name: 'La Pointe de Primel',
@@ -124,3 +127,20 @@ export const sectors: Sector[] = [
     ],
   },
 ];
+
+// ─── Sanity check (DEV uniquement) — unicité des IDs ─────────────────────────
+if (__DEV__) {
+  const allIds = [
+    ...sectors.map(s => s.id),
+    ...sectors.flatMap(s => s.subSectors.map(ss => ss.id)),
+  ];
+  const seen = new Set<string>();
+  for (const id of allIds) {
+    if (seen.has(id)) {
+      console.error(
+        `[sectors] ⚠️ ID en double détecté : "${id}" — les lookups seront ambigus.`,
+      );
+    }
+    seen.add(id);
+  }
+}

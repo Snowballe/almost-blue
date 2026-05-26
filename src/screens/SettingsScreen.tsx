@@ -426,7 +426,13 @@ export default function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.debugBtn}
-          onPress={() => sendTestNotification()}
+          onPress={() => {
+            // Pas d'await intentionnel ici (bouton debug fire-and-forget),
+            // mais on attrape les erreurs pour éviter un crash silencieux.
+            sendTestNotification().catch(e =>
+              console.warn('[Debug] sendTestNotification échoué :', e),
+            );
+          }}
           activeOpacity={0.7}>
           <Text style={styles.debugBtnText}>Envoyer une notif de test</Text>
         </TouchableOpacity>
@@ -434,9 +440,13 @@ export default function SettingsScreen() {
         <TouchableOpacity
           style={styles.debugBtn}
           onPress={async () => {
-            // Reset les scores pour forcer la détection de transition, puis check forcé
-            useNotificationStore.getState().clearScores();
-            await checkAndNotify(true); // force=true → ignore saison + toggle
+            try {
+              // Reset les scores pour forcer la détection de transition, puis check forcé
+              useNotificationStore.getState().clearScores();
+              await checkAndNotify(true); // force=true → ignore saison + toggle
+            } catch (e) {
+              console.warn('[Debug] checkAndNotify échoué :', e);
+            }
           }}
           activeOpacity={0.7}>
           <Text style={styles.debugBtnText}>Forcer un check météo (ignore la saison)</Text>

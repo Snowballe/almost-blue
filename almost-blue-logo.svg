@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+
+  <!--
+    Almost Blue — Logo / icône app  (Concept A : falaise + horizon)
+    ──────────────────────────────────────────────────────────────
+    Inspiré de la photo réelle : promontoire côtier étendu et bas
+    côté gauche, horizon à ~38 % du haut, mer qui domine le bas.
+
+    Palette CLAUDE.md :
+      #0D0F14   background / ciel
+      #0C1521   mer (légèrement plus bleue)
+      #1C2A3E   falaise (surfaceHigh)
+      #5EEAD4   ligne d'horizon (good / teal) — ÉLÉMENT HÉROS
+      #4D7EFF   liseré d'arête (accent)
+
+    Canva : importer, travailler en 1024×1024, exporter PNG.
+    Zone sécurité Android round : ≥ 10 % de marge chaque bord.
+  -->
+
+  <!-- ① Ciel -->
+  <rect width="1024" height="1024" fill="#0D0F14"/>
+
+  <!-- ② Mer — remplit les 62 % inférieurs (fidèle à la photo) -->
+  <rect x="0" y="405" width="1024" height="619" fill="#0C1521"/>
+
+  <!--
+    ③ Ligne d'horizon — ÉLÉMENT HÉROS
+    Centre à y = 390, bande y = 372..408, hauteur 36 px.
+    Fidèle à la photo : horizon à ~38 % du haut.
+  -->
+  <rect x="0" y="372" width="1024" height="36" fill="#5EEAD4"/>
+
+  <!--
+    ④ Silhouette de promontoire côtier
+    Profil plat et étendu (fidèle au HEIC) : le promontoire ne
+    culmine pas en aiguille mais en plateau rocheux progressif.
+
+    Trajet depuis coin bas-gauche :
+      (0,1024)   coin bas-gauche
+      (0,310)    flanc gauche — monte au-dessus de l'horizon
+      (40,280)   légère bosse sur le bord gauche
+      (110,255)  POINT HAUT du promontoire (~25 % depuis le haut)
+      (190,268)  épaule — plateau quasi-horizontal
+      (280,278)  plateau continue, très légère pente
+      (360,310)  début de la pente vers la mer
+      (420,370)  rejoint presque l'horizon
+      (455,390)  tangente l'horizon (centre de la bande teal)
+      (455,1024) descend au bas de l'image
+  -->
+  <polygon
+    points="
+      0,1024
+      0,310
+      40,280
+      110,255
+      190,268
+      280,278
+      360,310
+      420,370
+      455,390
+      455,1024
+    "
+    fill="#1C2A3E"
+  />
+
+  <!--
+    ⑤ Rochers de premier plan (coin bas-gauche)
+    Évoque les rochers visibles au bas de la photo.
+    Forme simple, légèrement plus sombre que le promontoire.
+  -->
+  <polygon
+    points="0,1024 0,870 55,820 100,850 80,1024"
+    fill="#151F2F"
+  />
+
+  <!--
+    ⑥ Liseré d'arête du promontoire — accent #4D7EFF
+    Suit le profil supérieur de la falaise.
+  -->
+  <polyline
+    points="0,310 40,280 110,255 190,268 280,278 360,310 420,370 455,390"
+    fill="none"
+    stroke="#4D7EFF"
+    stroke-width="6"
+    stroke-opacity="0.40"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+</svg>
