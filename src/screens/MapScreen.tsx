@@ -4,10 +4,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   TouchableWithoutFeedback,
-  View,
-} from 'react-native';
+  View} from 'react-native';
+import {TouchableOpacity} from 'react-native-gesture-handler';
 import {Camera, Map, ViewAnnotation} from '@maplibre/maplibre-react-native';
 import type {StyleSpecification} from '@maplibre/maplibre-gl-style-spec';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';

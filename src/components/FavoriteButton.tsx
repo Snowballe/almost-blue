@@ -1,5 +1,6 @@
 import React from 'react';
-import {StyleProp, Text, TouchableOpacity, ViewStyle} from 'react-native';
+import {StyleProp, Text, ViewStyle} from 'react-native';
+import {TouchableOpacity} from 'react-native-gesture-handler';
 import {useTheme, HIT_SLOP, ACTIVE_OPACITY} from '../theme';
 
 interface Props {

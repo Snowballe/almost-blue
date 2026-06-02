@@ -4,9 +4,8 @@ import {
   SectionList,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+  View} from 'react-native';
+import {TouchableOpacity} from 'react-native-gesture-handler';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {sectors} from '../data/sectors';
 import {Sector} from '../types/sector';

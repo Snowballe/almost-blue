@@ -4,9 +4,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+  View} from 'react-native';
+import {TouchableOpacity} from 'react-native-gesture-handler';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {sectors} from '../data/sectors';
 import {SubSector} from '../types/sector';

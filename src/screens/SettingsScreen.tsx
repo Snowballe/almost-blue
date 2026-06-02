@@ -3,9 +3,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+  View} from 'react-native';
+import {TouchableOpacity} from 'react-native-gesture-handler';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {MaterialIcons} from '@react-native-vector-icons/material-icons/static';
 import {useSettingsStore} from '../stores/useSettingsStore';

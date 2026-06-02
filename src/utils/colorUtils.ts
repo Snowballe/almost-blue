@@ -1,6 +1,6 @@
 // RGB stops for the score gradient: red (0) → yellow (5) → teal (10)
-const RED:    [number, number, number] = [239,  68,  68];  // #EF4444
-const YELLOW: [number, number, number] = [245, 158,  11];  // #F59E0B
+const RED:    [number, number, number] = [178,  34,  34];  // rgb(178,34,34)
+const YELLOW: [number, number, number] = [238, 210,   2];  // rgb(238,210,2)
 const GREEN:  [number, number, number] = [  0, 128,   0];  // #008000
 
 function lerp(
