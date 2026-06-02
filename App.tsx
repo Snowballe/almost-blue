@@ -4,10 +4,12 @@ import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {ThemeProvider} from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 import {useNotificationSetup} from './src/hooks/useNotificationSetup';
+import {usePrefetchFavorites} from './src/hooks/usePrefetchFavorites';
 import {ErrorBoundary} from './src/components/ErrorBoundary';
 
 function AppContent() {
   useNotificationSetup();
+  usePrefetchFavorites();
   return <AppNavigator />;
 }
 
