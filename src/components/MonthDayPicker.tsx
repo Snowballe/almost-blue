@@ -116,10 +116,9 @@ interface ColumnProps {
   selected: number;
   onSelect: (v: number) => void;
   styles: ReturnType<typeof makeStyles>;
-  accentColor: string;
 }
 
-function PickerColumn({data, selected, onSelect, styles, accentColor}: ColumnProps) {
+function PickerColumn({data, selected, onSelect, styles}: ColumnProps) {
   const ref = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -170,7 +169,6 @@ interface Props {
 
 export default function MonthDayPicker({visible, title, value, onChange, onClose}: Props) {
   const theme = useTheme();
-  const {colors} = theme;
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [localMonth, setLocalMonth] = useState(value.month);
@@ -205,9 +203,9 @@ export default function MonthDayPicker({visible, title, value, onChange, onClose
           </View>
 
           <View style={styles.columns}>
-            <PickerColumn data={monthData} selected={localMonth} onSelect={handleMonthChange} styles={styles} accentColor={colors.accent} />
+            <PickerColumn data={monthData} selected={localMonth} onSelect={handleMonthChange} styles={styles} />
             <View style={styles.colDivider} />
-            <PickerColumn data={dayData} selected={localDay} onSelect={setLocalDay} styles={styles} accentColor={colors.accent} />
+            <PickerColumn data={dayData} selected={localDay} onSelect={setLocalDay} styles={styles} />
           </View>
 
           <View style={styles.actions}>

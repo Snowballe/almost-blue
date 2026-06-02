@@ -16,6 +16,8 @@ import {WeatherForecast, WeatherScore, SubSectorSummary} from '../types/weather'
 import {useSectorsStore} from '../stores/useSectorsStore';
 import {useTheme, AppTheme, Colors} from '../theme';
 import {RootStackParamList} from '../navigation/AppNavigator';
+import {ORIENTATION_LABEL} from '../utils/orientationUtils';
+import FavoriteButton from '../components/FavoriteButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SectorDetail'>;
 
@@ -23,10 +25,6 @@ const SCORE_LABEL: Record<WeatherScore, string> = {
   good: 'Sec',
   ok: 'Incertain',
   bad: 'Humide',
-};
-const ORIENTATION_LABEL: Record<string, string> = {
-  N: '↑ N', NE: '↗ NE', E: '→ E', SE: '↘ SE',
-  S: '↓ S', SW: '↙ SW', W: '← W', NW: '↖ NW',
 };
 
 function scoreColor(score: WeatherScore, colors: Colors): string {
@@ -131,7 +129,7 @@ function makeStyles(t: AppTheme) {
       fontSize: typography.size.sm,
       color: colors.textMuted,
     },
-    headerFav:  {fontSize: 22, color: colors.warning, marginRight: spacing.md},
+    headerFavContainer: {marginRight: spacing.md},
   });
 }
 
@@ -147,7 +145,7 @@ function SubSectorRow({
   styles: ReturnType<typeof makeStyles>;
 }) {
   const summary: SubSectorSummary | null = forecast
-    ? getSubSectorSummary(forecast, subSector.orientation)
+    ? getSubSectorSummary(forecast, subSector.orientation, subSector.rockType)
     : null;
   const score = summary?.score ?? null;
   const window = summary ? formatWindow(summary.nextGoodWindow) : null;
@@ -169,7 +167,9 @@ function SubSectorRow({
         </Text>
         {score ? (
           <View style={[styles.badge, {backgroundColor: scoreColor(score, colors)}]}>
-            <Text style={styles.badgeText}>{SCORE_LABEL[score]}</Text>
+            <Text style={styles.badgeText}>
+              {SCORE_LABEL[score]} · {summary!.numericScore.toFixed(1)}/10
+            </Text>
           </View>
         ) : (
           <View style={[styles.badge, {backgroundColor: colors.border}]}>
@@ -220,9 +220,11 @@ export default function SectorDetailScreen({route, navigation}: Props) {
       title: sector?.name ?? 'Secteur',
       headerRight: sector
         ? () => (
-            <TouchableOpacity onPress={() => toggleFavorite(sectorId)}>
-              <Text style={styles.headerFav}>{isFav ? '★' : '☆'}</Text>
-            </TouchableOpacity>
+            <FavoriteButton
+              isFav={isFav}
+              onPress={() => toggleFavorite(sectorId)}
+              style={styles.headerFavContainer}
+            />
           )
         : undefined,
     });
@@ -251,7 +253,7 @@ export default function SectorDetailScreen({route, navigation}: Props) {
         ) : null}
       </View>
 
-      <Text style={styles.sectionTitle}>Sous-secteurs — météo 48h</Text>
+      <Text style={styles.sectionTitle}>Sous-secteurs — météo 72h</Text>
 
       {loading && (
         <ActivityIndicator style={styles.loader} color={colors.accent} />

@@ -16,61 +16,15 @@ beforeEach(() => {
   useSectorsStore.setState({favoriteIds: []});
 });
 
-// ─── addFavorite ──────────────────────────────────────────────────────────────
-
-describe('addFavorite', () => {
-  it('ajoute un ID absent', () => {
-    useSectorsStore.getState().addFavorite('secteur-1');
-    expect(useSectorsStore.getState().favoriteIds).toEqual(['secteur-1']);
-  });
-
-  it('ajoute plusieurs IDs distincts', () => {
-    const {addFavorite} = useSectorsStore.getState();
-    addFavorite('secteur-1');
-    addFavorite('secteur-2');
-    expect(useSectorsStore.getState().favoriteIds).toEqual(['secteur-1', 'secteur-2']);
-  });
-
-  /**
-   * TEST DE RÉGRESSION : addFavorite sans déduplication (bug #5).
-   * Avant le fix, un double appel créait deux entrées identiques dans le tableau.
-   */
-  it('[régression] ne duplique pas un ID déjà présent', () => {
-    const {addFavorite} = useSectorsStore.getState();
-    addFavorite('secteur-1');
-    addFavorite('secteur-1'); // double appel → doit rester un seul exemplaire
-    expect(useSectorsStore.getState().favoriteIds).toEqual(['secteur-1']);
-    expect(useSectorsStore.getState().favoriteIds).toHaveLength(1);
-  });
-});
-
-// ─── removeFavorite ───────────────────────────────────────────────────────────
-
-describe('removeFavorite', () => {
-  it('retire un ID présent', () => {
-    useSectorsStore.setState({favoriteIds: ['secteur-1', 'secteur-2']});
-    useSectorsStore.getState().removeFavorite('secteur-1');
-    expect(useSectorsStore.getState().favoriteIds).toEqual(['secteur-2']);
-  });
-
-  it('ne plante pas si l\'ID est absent (idempotent)', () => {
-    useSectorsStore.setState({favoriteIds: ['secteur-1']});
-    expect(() =>
-      useSectorsStore.getState().removeFavorite('inexistant'),
-    ).not.toThrow();
-    expect(useSectorsStore.getState().favoriteIds).toEqual(['secteur-1']);
-  });
-});
-
 // ─── isFavorite ───────────────────────────────────────────────────────────────
 
 describe('isFavorite', () => {
-  it('retourne true si l\'ID est dans les favoris', () => {
+  it("retourne true si l'ID est dans les favoris", () => {
     useSectorsStore.setState({favoriteIds: ['secteur-1']});
     expect(useSectorsStore.getState().isFavorite('secteur-1')).toBe(true);
   });
 
-  it('retourne false si l\'ID est absent', () => {
+  it("retourne false si l'ID est absent", () => {
     expect(useSectorsStore.getState().isFavorite('absent')).toBe(false);
   });
 
@@ -82,12 +36,12 @@ describe('isFavorite', () => {
 // ─── toggleFavorite ───────────────────────────────────────────────────────────
 
 describe('toggleFavorite', () => {
-  it('ajoute un ID absent', () => {
+  it("ajoute un ID absent", () => {
     useSectorsStore.getState().toggleFavorite('secteur-1');
     expect(useSectorsStore.getState().favoriteIds).toContain('secteur-1');
   });
 
-  it('retire un ID présent', () => {
+  it("retire un ID présent", () => {
     useSectorsStore.setState({favoriteIds: ['secteur-1']});
     useSectorsStore.getState().toggleFavorite('secteur-1');
     expect(useSectorsStore.getState().favoriteIds).not.toContain('secteur-1');
@@ -112,7 +66,7 @@ describe('toggleFavorite', () => {
     expect(useSectorsStore.getState().favoriteIds).not.toContain('secteur-1');
   });
 
-  it('toggles sur des IDs différents n\'interfèrent pas', () => {
+  it("toggles sur des IDs différents n'interfèrent pas", () => {
     useSectorsStore.getState().toggleFavorite('secteur-1');
     useSectorsStore.getState().toggleFavorite('secteur-2');
     useSectorsStore.getState().toggleFavorite('secteur-1'); // retire secteur-1

@@ -19,6 +19,7 @@ import {getSubSectorSummary} from '../utils/weatherLogic';
 import {WeatherScore} from '../types/weather';
 import {useTheme, AppTheme} from '../theme';
 import {RootStackParamList} from '../navigation/AppNavigator';
+import FavoriteButton from '../components/FavoriteButton';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Tabs'>;
@@ -97,8 +98,6 @@ function makeStyles(t: AppTheme) {
       color: colors.textPrimary,
       marginRight: spacing.md,
     },
-    favIcon:       {fontSize: 24, color: colors.textDisabled},
-    favIconActive: {color: colors.warning},
     altitude: {
       fontSize: typography.size.sm,
       color: colors.textMuted,
@@ -154,7 +153,7 @@ export default function MapScreen({navigation}: Props) {
       getCachedForecast(sector.latitude, sector.longitude)
         .then(forecast => {
           const scores = sector.subSectors.map(
-            ss => getSubSectorSummary(forecast, ss.orientation).score,
+            ss => getSubSectorSummary(forecast, ss.orientation, ss.rockType).score,
           );
           const best: WeatherScore = scores.includes('good')
             ? 'good'
@@ -163,7 +162,7 @@ export default function MapScreen({navigation}: Props) {
             : 'bad';
           setPinColors(prev => ({...prev, [sector.id]: scorePinColor[best]}));
         })
-        .catch(() => {});
+        .catch(e => console.warn('[MapScreen] forecast error:', e));
     });
   }, [scorePinColor]);
 
@@ -246,13 +245,11 @@ export default function MapScreen({navigation}: Props) {
                   <Text style={styles.sheetTitle} numberOfLines={1}>
                     {selected.name}
                   </Text>
-                  <TouchableOpacity
+                  <FavoriteButton
+                    isFav={isFav}
                     onPress={() => toggleFavorite(selected.id)}
-                    hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-                    <Text style={[styles.favIcon, isFav && styles.favIconActive]}>
-                      {isFav ? '★' : '☆'}
-                    </Text>
-                  </TouchableOpacity>
+                    size={24}
+                  />
                 </View>
 
                 {selected.altitude != null && (

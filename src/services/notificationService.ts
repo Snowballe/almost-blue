@@ -18,17 +18,12 @@ import {getSubSectorSummary} from '../utils/weatherLogic';
 import {isOffSeason} from '../utils/seasonLogic';
 import {WeatherScore} from '../types/weather';
 import {Sector, Orientation} from '../types/sector';
+import {ORIENTATION_FR} from '../utils/orientationUtils';
 
 const CHANNEL_ID = 'weather-alerts';
 
-const ORIENTATION_FR: Record<string, string> = {
-  N: 'Nord', NE: 'Nord-Est', E: 'Est',  SE: 'Sud-Est',
-  S: 'Sud',  SW: 'Sud-Ouest', W: 'Ouest', NW: 'Nord-Ouest',
-};
-
 interface GoodOrientation {
-  orientation: string;
-  /** Nom du premier sous-secteur représentatif de cette orientation. */
+  orientation: Orientation;
   subSectorName: string;
 }
 
@@ -168,7 +163,9 @@ export async function checkAndNotify(force = false): Promise<void> {
 
     for (const [orientation, subSectorName] of orientationMap) {
       const key = `${sector.id}:${orientation}`;
-      const {score} = getSubSectorSummary(forecast, orientation);
+      // Cherche le rockType du premier sous-secteur avec cette orientation
+      const rockType = sector.subSectors.find(ss => ss.orientation === orientation)?.rockType ?? 'slow';
+      const {score} = getSubSectorSummary(forecast, orientation, rockType);
       const wasGood = lastScores[key] === 'good';
 
       if (score === 'good' && !wasGood) {
