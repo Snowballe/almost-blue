@@ -16,8 +16,8 @@ import {Sector} from '../types/sector';
 import {useSectorsStore} from '../stores/useSectorsStore';
 import {getCachedForecast} from '../services/openMeteo';
 import {getSubSectorSummary} from '../utils/weatherLogic';
-import {WeatherScore} from '../types/weather';
 import {useTheme, AppTheme} from '../theme';
+import {numericScoreGradientColor} from '../utils/colorUtils';
 import {RootStackParamList} from '../navigation/AppNavigator';
 import FavoriteButton from '../components/FavoriteButton';
 
@@ -136,12 +136,6 @@ export default function MapScreen({navigation}: Props) {
   const {colors} = theme;
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
-  // Score → couleur de pin, calculé depuis les couleurs du thème actuel
-  const scorePinColor = useMemo<Record<WeatherScore, string>>(
-    () => ({good: colors.good, ok: colors.warning, bad: colors.danger}),
-    [colors],
-  );
-
   const [selected, setSelected] = useState<Sector | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [pinColors, setPinColors] = useState<Record<string, string>>({});
@@ -152,19 +146,16 @@ export default function MapScreen({navigation}: Props) {
     sectors.forEach(sector => {
       getCachedForecast(sector.latitude, sector.longitude)
         .then(forecast => {
-          const scores = sector.subSectors.map(
-            ss => getSubSectorSummary(forecast, ss.orientation, ss.rockType).score,
+          const best = Math.max(
+            ...sector.subSectors.map(
+              ss => getSubSectorSummary(forecast, ss.orientation, ss.rockType).numericScore,
+            ),
           );
-          const best: WeatherScore = scores.includes('good')
-            ? 'good'
-            : scores.includes('ok')
-            ? 'ok'
-            : 'bad';
-          setPinColors(prev => ({...prev, [sector.id]: scorePinColor[best]}));
+          setPinColors(prev => ({...prev, [sector.id]: numericScoreGradientColor(best)}));
         })
         .catch(e => console.warn('[MapScreen] forecast error:', e));
     });
-  }, [scorePinColor]);
+  }, []);
 
   const openSheet = useCallback(
     (sector: Sector) => {
