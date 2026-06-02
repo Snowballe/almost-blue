@@ -1,7 +1,7 @@
 // RGB stops for the score gradient: red (0) → yellow (5) → teal (10)
 const RED:    [number, number, number] = [239,  68,  68];  // #EF4444
 const YELLOW: [number, number, number] = [245, 158,  11];  // #F59E0B
-const TEAL:   [number, number, number] = [ 94, 234, 212];  // #5EEAD4
+const GREEN:  [number, number, number] = [  0, 128,   0];  // #008000
 
 function lerp(
   a: [number, number, number],
@@ -24,6 +24,6 @@ export function numericScoreGradientColor(score: number): string {
   const [r, g, b] =
     t <= 0.5
       ? lerp(RED, YELLOW, t / 0.5)
-      : lerp(YELLOW, TEAL, (t - 0.5) / 0.5);
+      : lerp(YELLOW, GREEN, (t - 0.5) / 0.5);
   return `rgb(${r},${g},${b})`;
 }
