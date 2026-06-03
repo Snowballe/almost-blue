@@ -118,6 +118,37 @@ export const sectors: Sector[] = [
       {id: 'galamus-rive-gauche', name: 'Rive Gauche', orientation: 'E', rockType: 'slow'},
     ],
   },
+
+  {
+    id: 'imperatrice-plougastel',
+    name: "L'Impératrice",
+    latitude: 0,   // ⚠️ À remplacer par les vraies coordonnées GPS
+    longitude: 0,  // ⚠️ À remplacer par les vraies coordonnées GPS
+    altitude: 80,  // estimation — falaise dans les bois de Plougastel (~80 m NGF)
+    notes:
+      'Granit breton, Plougastel-Daoulas (29). Terrain privé — comportement respectueux ' +
+      'exigé (pas de feu, bivouac, camping). Accès depuis Brest : RN 165 dir. Quimper → ' +
+      "après le pont de l'Iroise, 2e sortie Plougastel → rond-point dir. 'Toull Ar Rohou'. " +
+      "Parking 50 m après la patte d'oie, chemin d'accès 50 m plus bas. Topo CAF Brest 2003.",
+    subSectors: [
+      {id: 'imperatrice-grand-toit',      name: 'Grand Toit',      orientation: 'NW', rockType: 'fast',
+        notes: '35 m, 12 voies 4–8b. Les voies les plus dures du site.'},
+      {id: 'imperatrice-jy-va-ty',        name: "J'y va t'y",      orientation: 'NW', rockType: 'fast',
+        notes: '40 m, 11 voies 4–7b.'},
+      {id: 'imperatrice-fer-a-cheval',    name: 'Fer à Cheval',    orientation: 'NW', rockType: 'fast',
+        notes: '35 m, 12 voies 4–6c+.'},
+      {id: 'imperatrice-trou-de-godille', name: 'Trou de Godille', orientation: 'W',  rockType: 'fast',
+        notes: '35 m, 4 voies 4–6a. Certains relais équipés.'},
+      {id: 'imperatrice-feuilles-mortes', name: 'Feuilles Mortes', orientation: 'SW', rockType: 'fast',
+        notes: '20 m, 3 voies 5–5+. Relais ré-équipé au sommet.'},
+      {id: 'imperatrice-initiation',      name: 'Initiation',      orientation: 'SE', rockType: 'fast',
+        notes: '20 m, 14 voies 3–7a (secteurs 1 & 2). Idéal débutants.'},
+      {id: 'imperatrice-arbre-foudroye',  name: 'Arbre Foudroyé',  orientation: 'NW', rockType: 'fast',
+        notes: "8 m, 4 voies 4–6c. Accès par le sentier contournant l'Impératrice côté sud. Vue sur la rade de Brest."},
+      {id: 'imperatrice-le-fennec',       name: 'Le Fennec',       orientation: 'NE', rockType: 'fast',
+        notes: '12 m, 5 voies 6a–7a+. Dalle en léger dévers. Orientation NNE dans le topo → NE.'},
+    ],
+  },
 ];
 
 // ─── Sanity check (DEV uniquement) — unicité des IDs ─────────────────────────
