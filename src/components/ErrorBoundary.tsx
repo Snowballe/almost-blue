@@ -1,6 +1,7 @@
 import React, {Component, ReactNode} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {TouchableOpacity} from 'react-native-gesture-handler';
+import {darkColors} from '../theme/colors';
 
 interface Props {
   children: ReactNode;
@@ -58,33 +59,33 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D0F14',
+    backgroundColor: darkColors.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   title: {
-    color: '#E8EAF0',
+    color: darkColors.textPrimary,
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 12,
   },
   detail: {
-    color: '#7B85A0',
+    color: darkColors.textMuted,
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 18,
   },
   btn: {
-    backgroundColor: '#4D7EFF',
+    backgroundColor: darkColors.accent,
     borderRadius: 10,
     paddingHorizontal: 24,
     paddingVertical: 12,
   },
   btnText: {
-    color: '#E8EAF0',
+    color: darkColors.textPrimary,
     fontSize: 15,
     fontWeight: '600',
   },

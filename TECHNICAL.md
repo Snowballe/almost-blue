@@ -169,8 +169,8 @@ __tests__/
 ├── stores/
 │   └── useSectorsStore.test.ts    isFavorite, toggleFavorite (8 cas)
 └── utils/
-    ├── seasonLogic.test.ts        isOffSeason, nextSeasonChangeDate (15 cas)
-    └── weatherLogic.test.ts       buildForecast, getSubSectorSummary (27 cas)
+    ├── seasonLogic.test.ts        isOffSeason, nextSeasonChangeDate (22 cas)
+    └── weatherLogic.test.ts       buildForecast, getSubSectorSummary (41 cas)
 ```
 
 Commande : `npm test`
