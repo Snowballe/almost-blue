@@ -142,17 +142,30 @@ export default function MapScreen({navigation}: Props) {
   const {isFavorite, toggleFavorite} = useSectorsStore();
 
   useEffect(() => {
-    sectors.forEach(sector => {
-      getCachedForecast(sector.latitude, sector.longitude)
-        .then(forecast => {
-          const best = Math.max(
-            ...sector.subSectors.map(
-              ss => getSubSectorSummary(forecast, ss.orientation, ss.rockType).numericScore,
+    // Toutes les requêtes en parallèle ; une seule mise à jour d'état à la fin
+    // (au lieu de N appels setPinColors séparés → N re-renders).
+    // allSettled : une erreur réseau sur un secteur n'annule pas les autres.
+    Promise.allSettled(
+      sectors.map(sector =>
+        getCachedForecast(sector.latitude, sector.longitude).then(forecast => ({
+          id: sector.id,
+          color: numericScoreGradientColor(
+            Math.max(
+              ...sector.subSectors.map(
+                ss => getSubSectorSummary(forecast, ss.orientation, ss.rockType).numericScore,
+              ),
             ),
-          );
-          setPinColors(prev => ({...prev, [sector.id]: numericScoreGradientColor(best)}));
-        })
-        .catch(e => console.warn('[MapScreen] forecast error:', e));
+          ),
+        })),
+      ),
+    ).then(results => {
+      const colors: Record<string, string> = {};
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          colors[r.value.id] = r.value.color;
+        }
+      }
+      setPinColors(colors);
     });
   }, []);
 

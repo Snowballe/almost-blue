@@ -62,6 +62,9 @@ export function useNotificationSetup(): void {
     );
 
     // Lancer un check immédiat lors de l'ouverture de l'app (en plus du background).
+    // Différé de 4s pour ne pas concurrencer la rehydration des stores et les
+    // requêtes réseau de MapScreen au démarrage. La fenêtre météo ne change pas
+    // en 4 secondes ; le background fetch reprend de toute façon selon l'intervalle.
     // Le verrou checkInProgress évite d'empiler plusieurs checks si l'effet
     // se re-déclenche (changement de settings) avant que le précédent soit fini.
     async function runImmediateCheck() {
@@ -78,6 +81,7 @@ export function useNotificationSetup(): void {
         checkInProgress.current = false;
       }
     }
-    runImmediateCheck();
+    const timer = setTimeout(runImmediateCheck, 4000);
+    return () => clearTimeout(timer);
   }, [checkIntervalMinutes, notificationsEnabled]);
 }
