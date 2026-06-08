@@ -52,6 +52,7 @@ interface SettingsStore {
   setOffseasonEnd: (value: SeasonBound) => void;
   resetOffseasonDates: () => void;
   setOverrideHibernation: (value: boolean) => void;
+  resetAll: () => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -76,6 +77,16 @@ export const useSettingsStore = create<SettingsStore>()(
       resetOffseasonDates: () =>
         set({offseasonStart: OFFSEASON_START, offseasonEnd: OFFSEASON_END}),
       setOverrideHibernation: value => set({overrideHibernation: value}),
+      resetAll: () => set({
+        notificationsEnabled: true,
+        checkIntervalMinutes: 180,
+        notificationsInSummer: false,
+        hibernationEnabled: true,
+        colorScheme: 'dark',
+        offseasonStart: OFFSEASON_START,
+        offseasonEnd: OFFSEASON_END,
+        overrideHibernation: false,
+      }),
     }),
     {
       name: 'settings-store',

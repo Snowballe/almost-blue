@@ -1,5 +1,6 @@
 import React, {useMemo, useState} from 'react';
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -112,6 +113,7 @@ export default function SettingsScreen() {
     setOffseasonStart,
     setOffseasonEnd,
     resetOffseasonDates,
+    resetAll,
   } = useSettingsStore();
 
   const [pickerTarget, setPickerTarget] = useState<PickerTarget>(null);
@@ -227,6 +229,24 @@ export default function SettingsScreen() {
           }}
           activeOpacity={ACTIVE_OPACITY}>
           <Text style={styles.debugBtnText}>Forcer un check météo (ignore la saison)</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.debugBtn}
+          onPress={() =>
+            Alert.alert(
+              'Remettre les réglages par défaut ?',
+              'Tous les réglages seront réinitialisés (notifications, hibernation, saison, thème).',
+              [
+                {text: 'Annuler', style: 'cancel'},
+                {text: 'Réinitialiser', style: 'destructive', onPress: resetAll},
+              ],
+            )
+          }
+          activeOpacity={ACTIVE_OPACITY}>
+          <Text style={[styles.debugBtnText, {color: colors.danger}]}>
+            Remettre les réglages par défaut
+          </Text>
         </TouchableOpacity>
 
         {/* ── À propos ── */}
