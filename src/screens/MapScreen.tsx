@@ -4,10 +4,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   TouchableWithoutFeedback,
-  View,
-} from 'react-native';
+  View} from 'react-native';
+import {TouchableOpacity} from 'react-native-gesture-handler';
 import {Camera, Map, ViewAnnotation} from '@maplibre/maplibre-react-native';
 import type {StyleSpecification} from '@maplibre/maplibre-gl-style-spec';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -16,9 +15,10 @@ import {Sector} from '../types/sector';
 import {useSectorsStore} from '../stores/useSectorsStore';
 import {getCachedForecast} from '../services/openMeteo';
 import {getSubSectorSummary} from '../utils/weatherLogic';
-import {WeatherScore} from '../types/weather';
 import {useTheme, AppTheme} from '../theme';
+import {numericScoreGradientColor} from '../utils/colorUtils';
 import {RootStackParamList} from '../navigation/AppNavigator';
+import FavoriteButton from '../components/FavoriteButton';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Tabs'>;
@@ -97,8 +97,6 @@ function makeStyles(t: AppTheme) {
       color: colors.textPrimary,
       marginRight: spacing.md,
     },
-    favIcon:       {fontSize: 24, color: colors.textDisabled},
-    favIconActive: {color: colors.warning},
     altitude: {
       fontSize: typography.size.sm,
       color: colors.textMuted,
@@ -137,12 +135,6 @@ export default function MapScreen({navigation}: Props) {
   const {colors} = theme;
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
-  // Score → couleur de pin, calculé depuis les couleurs du thème actuel
-  const scorePinColor = useMemo<Record<WeatherScore, string>>(
-    () => ({good: colors.good, ok: colors.warning, bad: colors.danger}),
-    [colors],
-  );
-
   const [selected, setSelected] = useState<Sector | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [pinColors, setPinColors] = useState<Record<string, string>>({});
@@ -150,22 +142,32 @@ export default function MapScreen({navigation}: Props) {
   const {isFavorite, toggleFavorite} = useSectorsStore();
 
   useEffect(() => {
-    sectors.forEach(sector => {
-      getCachedForecast(sector.latitude, sector.longitude)
-        .then(forecast => {
-          const scores = sector.subSectors.map(
-            ss => getSubSectorSummary(forecast, ss.orientation).score,
-          );
-          const best: WeatherScore = scores.includes('good')
-            ? 'good'
-            : scores.includes('ok')
-            ? 'ok'
-            : 'bad';
-          setPinColors(prev => ({...prev, [sector.id]: scorePinColor[best]}));
-        })
-        .catch(() => {});
+    // Toutes les requêtes en parallèle ; une seule mise à jour d'état à la fin
+    // (au lieu de N appels setPinColors séparés → N re-renders).
+    // allSettled : une erreur réseau sur un secteur n'annule pas les autres.
+    Promise.allSettled(
+      sectors.map(sector =>
+        getCachedForecast(sector.latitude, sector.longitude).then(forecast => ({
+          id: sector.id,
+          color: numericScoreGradientColor(
+            Math.max(
+              ...sector.subSectors.map(
+                ss => getSubSectorSummary(forecast, ss.orientation, ss.rockType).numericScore,
+              ),
+            ),
+          ),
+        })),
+      ),
+    ).then(results => {
+      const colors: Record<string, string> = {};
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          colors[r.value.id] = r.value.color;
+        }
+      }
+      setPinColors(colors);
     });
-  }, [scorePinColor]);
+  }, []);
 
   const openSheet = useCallback(
     (sector: Sector) => {
@@ -246,13 +248,11 @@ export default function MapScreen({navigation}: Props) {
                   <Text style={styles.sheetTitle} numberOfLines={1}>
                     {selected.name}
                   </Text>
-                  <TouchableOpacity
+                  <FavoriteButton
+                    isFav={isFav}
                     onPress={() => toggleFavorite(selected.id)}
-                    hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-                    <Text style={[styles.favIcon, isFav && styles.favIconActive]}>
-                      {isFav ? '★' : '☆'}
-                    </Text>
-                  </TouchableOpacity>
+                    size={24}
+                  />
                 </View>
 
                 {selected.altitude != null && (

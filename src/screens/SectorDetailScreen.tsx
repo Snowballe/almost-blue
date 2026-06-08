@@ -4,9 +4,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+  View} from 'react-native';
+import {TouchableOpacity} from 'react-native-gesture-handler';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {sectors} from '../data/sectors';
 import {SubSector} from '../types/sector';
@@ -14,8 +13,11 @@ import {getCachedForecast} from '../services/openMeteo';
 import {getSubSectorSummary} from '../utils/weatherLogic';
 import {WeatherForecast, WeatherScore, SubSectorSummary} from '../types/weather';
 import {useSectorsStore} from '../stores/useSectorsStore';
-import {useTheme, AppTheme, Colors} from '../theme';
+import {useTheme, AppTheme} from '../theme';
 import {RootStackParamList} from '../navigation/AppNavigator';
+import {ORIENTATION_LABEL} from '../utils/orientationUtils';
+import FavoriteButton from '../components/FavoriteButton';
+import {numericScoreGradientColor} from '../utils/colorUtils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SectorDetail'>;
 
@@ -24,14 +26,6 @@ const SCORE_LABEL: Record<WeatherScore, string> = {
   ok: 'Incertain',
   bad: 'Humide',
 };
-const ORIENTATION_LABEL: Record<string, string> = {
-  N: '↑ N', NE: '↗ NE', E: '→ E', SE: '↘ SE',
-  S: '↓ S', SW: '↙ SW', W: '← W', NW: '↖ NW',
-};
-
-function scoreColor(score: WeatherScore, colors: Colors): string {
-  return {good: colors.good, ok: colors.warning, bad: colors.danger}[score];
-}
 
 function formatWindow(w: SubSectorSummary['nextGoodWindow']): string | null {
   if (!w) return null;
@@ -131,23 +125,22 @@ function makeStyles(t: AppTheme) {
       fontSize: typography.size.sm,
       color: colors.textMuted,
     },
-    headerFav:  {fontSize: 22, color: colors.warning, marginRight: spacing.md},
+    headerFavContainer: {marginRight: spacing.md},
   });
 }
 
 function SubSectorRow({
   subSector,
   forecast,
-  colors,
   styles,
 }: {
   subSector: SubSector;
   forecast: WeatherForecast | null;
-  colors: Colors;
   styles: ReturnType<typeof makeStyles>;
 }) {
+  const {colors} = useTheme();
   const summary: SubSectorSummary | null = forecast
-    ? getSubSectorSummary(forecast, subSector.orientation)
+    ? getSubSectorSummary(forecast, subSector.orientation, subSector.rockType)
     : null;
   const score = summary?.score ?? null;
   const window = summary ? formatWindow(summary.nextGoodWindow) : null;
@@ -167,9 +160,11 @@ function SubSectorRow({
         <Text style={styles.orientation}>
           {ORIENTATION_LABEL[subSector.orientation]}
         </Text>
-        {score ? (
-          <View style={[styles.badge, {backgroundColor: scoreColor(score, colors)}]}>
-            <Text style={styles.badgeText}>{SCORE_LABEL[score]}</Text>
+        {summary ? (
+          <View style={[styles.badge, {backgroundColor: numericScoreGradientColor(summary.numericScore)}]}>
+            <Text style={styles.badgeText}>
+              {SCORE_LABEL[score!]} · {summary.numericScore.toFixed(1)}/10
+            </Text>
           </View>
         ) : (
           <View style={[styles.badge, {backgroundColor: colors.border}]}>
@@ -220,9 +215,11 @@ export default function SectorDetailScreen({route, navigation}: Props) {
       title: sector?.name ?? 'Secteur',
       headerRight: sector
         ? () => (
-            <TouchableOpacity onPress={() => toggleFavorite(sectorId)}>
-              <Text style={styles.headerFav}>{isFav ? '★' : '☆'}</Text>
-            </TouchableOpacity>
+            <FavoriteButton
+              isFav={isFav}
+              onPress={() => toggleFavorite(sectorId)}
+              style={styles.headerFavContainer}
+            />
           )
         : undefined,
     });
@@ -251,7 +248,7 @@ export default function SectorDetailScreen({route, navigation}: Props) {
         ) : null}
       </View>
 
-      <Text style={styles.sectionTitle}>Sous-secteurs — météo 48h</Text>
+      <Text style={styles.sectionTitle}>Sous-secteurs — météo 72h</Text>
 
       {loading && (
         <ActivityIndicator style={styles.loader} color={colors.accent} />
@@ -270,7 +267,6 @@ export default function SectorDetailScreen({route, navigation}: Props) {
           key={ss.id}
           subSector={ss}
           forecast={forecast}
-          colors={colors}
           styles={styles}
         />
       ))}

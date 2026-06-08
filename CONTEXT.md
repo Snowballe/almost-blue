@@ -14,7 +14,7 @@ Application React Native qui alerte les grimpeurs outdoor quand une fenêtre mé
 - ✅ Météo par sous-secteur via Open-Meteo
 - ⏳ Saisie des vrais secteurs dans `src/data/sectors.ts`
 - ⏳ Affinage seuils météo
-- ⏳ Notifications locales
+- ✅ Notifications locales
 
 ## Décisions clés
 

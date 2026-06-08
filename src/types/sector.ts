@@ -4,6 +4,8 @@ export interface SubSector {
   id: string;
   name: string;
   orientation: Orientation;
+  /** Granite/grès (fast) sèche en quelques heures ; calcaire/conglomérat (slow) peut suinter 24h+. */
+  rockType: 'fast' | 'slow';
   notes?: string;
 }
 

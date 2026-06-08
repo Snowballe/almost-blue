@@ -107,6 +107,8 @@ export default function AppNavigator() {
     }
   }, [inOffSeason, overrideHibernation, setOverrideHibernation]);
 
+  // isOffSeason = true pendant la saison de grimpe (nov→mars).
+  // !inOffSeason = true pendant l'été → l'app se met en veille.
   const hibernating = hibernationEnabled && !inOffSeason && !overrideHibernation;
 
   const navTheme = {

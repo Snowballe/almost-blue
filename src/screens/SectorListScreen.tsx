@@ -1,19 +1,18 @@
 import React, {useMemo} from 'react';
 import {
-  FlatList,
   ListRenderItem,
   SectionList,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+  View} from 'react-native';
+import {TouchableOpacity} from 'react-native-gesture-handler';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {sectors} from '../data/sectors';
 import {Sector} from '../types/sector';
 import {useSectorsStore} from '../stores/useSectorsStore';
-import {useTheme, Colors, AppTheme} from '../theme';
+import {useTheme, AppTheme, ACTIVE_OPACITY} from '../theme';
 import {RootStackParamList} from '../navigation/AppNavigator';
+import FavoriteButton from '../components/FavoriteButton';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Tabs'>;
@@ -54,9 +53,7 @@ function makeStyles(t: AppTheme) {
       color: colors.textMuted,
       marginTop: 2,
     },
-    favBtn:         {paddingLeft: spacing.md},
-    favIcon:        {fontSize: 22, color: colors.textDisabled},
-    favIconActive:  {color: colors.warning},
+    favBtn: {paddingLeft: spacing.md},
   });
 }
 
@@ -65,18 +62,16 @@ function SectorRow({
   onPress,
   isFav,
   onToggleFav,
-  colors,
   styles,
 }: {
   sector: Sector;
   onPress: () => void;
   isFav: boolean;
   onToggleFav: () => void;
-  colors: Colors;
   styles: ReturnType<typeof makeStyles>;
 }) {
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={ACTIVE_OPACITY}>
       <View style={styles.rowInfo}>
         <Text style={styles.rowName}>{sector.name}</Text>
         <Text style={styles.rowMeta}>
@@ -85,21 +80,13 @@ function SectorRow({
           {sector.altitude != null ? ` · ${sector.altitude}m` : ''}
         </Text>
       </View>
-      <TouchableOpacity
-        style={styles.favBtn}
-        onPress={onToggleFav}
-        hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-        <Text style={[styles.favIcon, isFav && styles.favIconActive]}>
-          {isFav ? '★' : '☆'}
-        </Text>
-      </TouchableOpacity>
+      <FavoriteButton isFav={isFav} onPress={onToggleFav} style={styles.favBtn} />
     </TouchableOpacity>
   );
 }
 
 export default function SectorListScreen({navigation}: Props) {
   const theme = useTheme();
-  const {colors} = theme;
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const {favoriteIds, toggleFavorite, isFavorite} = useSectorsStore();
 
@@ -131,7 +118,6 @@ export default function SectorListScreen({navigation}: Props) {
       isFav={isFavorite(item.id)}
       onPress={() => navigation.navigate('SectorDetail', {sectorId: item.id})}
       onToggleFav={() => toggleFavorite(item.id)}
-      colors={colors}
       styles={styles}
     />
   );

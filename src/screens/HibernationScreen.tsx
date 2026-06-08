@@ -2,9 +2,8 @@ import React, {useMemo} from 'react';
 import {
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+  View} from 'react-native';
+import {TouchableOpacity} from 'react-native-gesture-handler';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {nextSeasonChangeDate} from '../utils/seasonLogic';
 import {useSettingsStore} from '../stores/useSettingsStore';

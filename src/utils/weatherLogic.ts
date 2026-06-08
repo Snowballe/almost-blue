@@ -9,66 +9,94 @@ import {Orientation} from '../types/sector';
 
 // ─── Seuils ──────────────────────────────────────────────────────────────────
 
-const MIN_TEMP = 5;               // °C en dessous duquel on ne grimpe pas
-const MAX_PRECIP = 0.5;           // mm/h — précipitation active
-const MIN_WIND_DRYING = 15;       // km/h — vent minimum pour sécher en face exposée
-const DRYING_LOOKBACK_H = 12;     // heures de lookback pour la pluie récente
-const PRECIP_PROB_WARN = 60;      // % — probabilité de pluie déclenchant un warning
-const PRECIP_PROB_BAD  = 80;      // % — probabilité de pluie → bad
+const MIN_TEMP        = 5;   // °C minimal (avant correctif d'orientation)
+const MIN_WIND_DRYING = 15;  // km/h — vent de face pour séchage actif
+const MAX_PRECIP      = 0.5; // mm/h — précipitation active
 
-// Codes WMO mauvais temps (orages, grosses pluies, neige)
-const BAD_WEATHER_CODES = new Set([
-  55, 57,                          // bruine forte / bruine verglaçante
-  63, 65, 67,                      // pluie modérée / forte / pluie verglaçante
-  73, 75, 77,                      // neige modérée / forte / grésil
-  81, 82,                          // averses fortes
-  85, 86,                          // averses de neige modérée / forte
-  95, 96, 99,                      // orage
-]);
+// ─── Poids du modèle additif ─────────────────────────────────────────────────
+
+/**
+ * Tous les poids du modèle de score. Modifiez ces valeurs pour recalibrer
+ * le score sans toucher à la logique.
+ *
+ * Échelle : [0, 10]. BASE = 6 (conditions neutres, avant bonus/malus).
+ * Seuils : score >= THRESHOLD_GOOD → 'good', >= THRESHOLD_OK → 'ok', sinon 'bad'.
+ */
+export const SCORE_WEIGHTS = {
+  BASE: 6,
+
+  // Précipitations actives (par mm/h)
+  PRECIP_ACTIVE_PER_MM: -2.5,
+
+  // Probabilité de pluie
+  PRECIP_PROB_HIGH:           -3.0,
+  PRECIP_PROB_HIGH_THRESHOLD:  80,
+  PRECIP_PROB_WARN:           -2.0,
+  PRECIP_PROB_WARN_THRESHOLD:  60,
+
+  // Pluie récente — coefficient par mm cumulé dans la fenêtre de lookback
+  RECENT_RAIN_PER_MM: -1.0,
+
+  // Multiplicateur d'exposition au vent sur la pluie récente
+  // 0 = vent de face fort → séchage actif → pas de malus pluie
+  EXPOSURE_SHELTERED:       1.00,
+  EXPOSURE_SIDE:            0.75,
+  EXPOSURE_EXPOSED_WEAK:    0.50,
+  EXPOSURE_EXPOSED_STRONG:  0.00,
+
+  // Température effective (par degré en dessous du seuil)
+  TEMP_COLD_PER_DEG: 1.0,
+
+  // Bonus vent séchant (face exposée + vent >= MIN_WIND_DRYING)
+  WIND_DRYING_BONUS: 1.0,
+
+  // Vent fort (inconfort / sécurité)
+  WIND_STRONG_PENALTY:   -1.5,
+  WIND_STRONG_THRESHOLD:  60,  // km/h
+
+  // Bonus ciel dégagé (codes WMO 0 et 1)
+  WMO_CLEAR_BONUS: 0.5,
+
+  // Malus par catégorie WMO (appliqués une seule fois, pas cumulables)
+  WMO_STORM_PENALTY:      -6.0,  // orages
+  WMO_SNOW_PENALTY:       -4.0,  // neige / grésil
+  WMO_HEAVY_RAIN_PENALTY: -3.0,  // pluie forte / averses fortes
+
+  // Seuils de dérivation WeatherScore
+  THRESHOLD_GOOD: 6.0,
+  THRESHOLD_OK:   4.0,
+} as const;
+
+// ─── Codes WMO par catégorie ──────────────────────────────────────────────────
+
+const WMO_CODES_STORM = new Set([95, 96, 99]);
+const WMO_CODES_SNOW  = new Set([71, 73, 75, 77, 85, 86]);
+const WMO_CODES_RAIN  = new Set([55, 57, 63, 65, 67, 81, 82]);
+const WMO_CODES_CLEAR = new Set([0, 1]);
 
 // ─── Orientation → correctif température ─────────────────────────────────────
 
 /**
- * Correctif appliqué à MIN_TEMP pour tenir compte de l'ensoleillement
- * de la paroi. Une face N est plus froide (seuil relevé), une face S
- * est plus chaude (seuil abaissé).
+ * Correctif appliqué à MIN_TEMP selon l'ensoleillement de la paroi.
+ * Face N plus froide (seuil relevé), face S plus chaude (seuil abaissé).
  */
 const ORIENTATION_TEMP_ADJUST: Record<Orientation, number> = {
-  N:  4,
-  NE: 3,
-  NW: 2,
-  E:  0,
-  W:  0,
-  SE: -1,
-  S:  -2,
-  SW: -2,
+  N:   4, NE:  3, NW:  2,
+  E:   0, W:   0,
+  SE: -1, S:  -2, SW: -2,
 };
 
-// ─── Orientation → degrés (convention météo : d'où vient le vent) ────────────
+// ─── Orientation → degrés ────────────────────────────────────────────────────
 
 const ORIENTATION_DEG: Record<Orientation, number> = {
-  N:   0,
-  NE:  45,
-  E:   90,
-  SE:  135,
-  S:   180,
-  SW:  225,
-  W:   270,
-  NW:  315,
+  N: 0, NE: 45, E: 90, SE: 135,
+  S: 180, SW: 225, W: 270, NW: 315,
 };
 
-// ─── Exposition vent / paroi ──────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 type WindExposure = 'exposed' | 'side' | 'sheltered';
 
-/**
- * Calcule l'angle entre la direction d'où vient le vent et la normale
- * à la paroi (= orientation de la face).
- *
- * - exposed  : vent de face (± 60°) → évaporation forcée
- * - side     : vent de côté (60°–120°)
- * - sheltered: vent dans le dos (> 120°) → séchage lent
- */
 function getWindExposure(windDir: number, orientation: Orientation): WindExposure {
   const wallDeg = ORIENTATION_DEG[orientation];
   let diff = Math.abs(windDir - wallDeg) % 360;
@@ -78,126 +106,172 @@ function getWindExposure(windDir: number, orientation: Orientation): WindExposur
   return 'sheltered';
 }
 
-// ─── Score d'un créneau (avec contexte d'orientation) ────────────────────────
+function numericToWeatherScore(n: number): WeatherScore {
+  if (n >= SCORE_WEIGHTS.THRESHOLD_GOOD) return 'good';
+  if (n >= SCORE_WEIGHTS.THRESHOLD_OK)   return 'ok';
+  return 'bad';
+}
+
+function clamp(n: number): number {
+  return Math.max(0, Math.min(10, n));
+}
+
+// ─── Score orienté (utilisé par getSubSectorSummary) ─────────────────────────
 
 /**
- * Score un créneau horaire en tenant compte de :
- * - la pluie en cours et la pluie récente (lookback 12h)
- * - la direction + vitesse du vent par rapport à la paroi
- * - la température effective (avec correctif d'orientation)
- * - la probabilité de précipitations
- * - les codes WMO (orages, grosses pluies, neige)
+ * Calcule le score d'un créneau en tenant compte de l'orientation de la paroi
+ * et du type de roche (vitesse de séchage).
  */
-function scoreSlotForOrientation(
+function scoreSlotNumeric(
   slot: WeatherSlot,
   orientation: Orientation,
-): {score: WeatherScore; reasons: string[]} {
-  const reasons: string[] = [];
+  rockType: 'fast' | 'slow',
+): number {
+  let score = SCORE_WEIGHTS.BASE;
 
-  // 1. Précipitations actives — bad immédiat
+  // 1. Précipitations actives
   if (slot.precipitation > MAX_PRECIP) {
-    return {score: 'bad', reasons: [`Précipitations (${slot.precipitation.toFixed(1)}mm/h)`]};
-  }
-
-  // 2. Codes WMO mauvais temps — bad immédiat
-  if (BAD_WEATHER_CODES.has(slot.weatherCode)) {
-    return {score: 'bad', reasons: [`Conditions météo défavorables (code ${slot.weatherCode})`]};
-  }
-
-  // 3. Probabilité de pluie élevée
-  if (slot.precipProbability >= PRECIP_PROB_BAD) {
-    return {score: 'bad', reasons: [`Risque de pluie élevé (${slot.precipProbability}%)`]};
-  }
-  if (slot.precipProbability >= PRECIP_PROB_WARN) {
-    reasons.push(`Risque de pluie (${slot.precipProbability}%)`);
-  }
-
-  // 4. Température effective (correctif selon orientation)
-  // ?? 0 : fallback défensif si une orientation invalide arrivait depuis
-  // AsyncStorage corrompu — évite un NaN qui désactiverait silencieusement le check.
-  const tempAdjust = ORIENTATION_TEMP_ADJUST[orientation] ?? 0;
-  const effectiveMinTemp = MIN_TEMP + tempAdjust;
-  if (slot.temperature < effectiveMinTemp) {
-    reasons.push(`Température trop basse (${slot.temperature.toFixed(0)}°C)`);
-  }
-
-  // 5. Pluie récente × exposition au vent
-  //    C'est le critère le plus important pour l'escalade outdoor.
-  if (slot.recentRain) {
-    const exposure = getWindExposure(slot.windDirection, orientation);
-    if (exposure === 'exposed' && slot.windspeed >= MIN_WIND_DRYING) {
-      // Vent de face suffisant → séchage actif → pas de malus
-    } else if (exposure === 'exposed' && slot.windspeed < MIN_WIND_DRYING) {
-      reasons.push(
-        `Pluie récente — face exposée mais vent faible (${slot.windspeed.toFixed(0)}km/h)`,
-      );
-    } else if (exposure === 'side') {
-      reasons.push(
-        `Pluie récente — vent de côté, séchage modéré (${slot.windspeed.toFixed(0)}km/h)`,
-      );
-    } else {
-      // sheltered — vent dans le dos, séchage très lent
-      reasons.push(`Pluie récente — paroi abritée du vent, séchage lent`);
+    score += SCORE_WEIGHTS.PRECIP_ACTIVE_PER_MM * slot.precipitation;
+  } else {
+    // Bonus/malus WMO (mutuellement exclusifs, ordre décroissant de gravité)
+    if (WMO_CODES_STORM.has(slot.weatherCode)) {
+      score += SCORE_WEIGHTS.WMO_STORM_PENALTY;
+    } else if (WMO_CODES_SNOW.has(slot.weatherCode)) {
+      score += SCORE_WEIGHTS.WMO_SNOW_PENALTY;
+    } else if (WMO_CODES_RAIN.has(slot.weatherCode)) {
+      score += SCORE_WEIGHTS.WMO_HEAVY_RAIN_PENALTY;
+    } else if (WMO_CODES_CLEAR.has(slot.weatherCode)) {
+      score += SCORE_WEIGHTS.WMO_CLEAR_BONUS;
     }
   }
 
-  const score: WeatherScore =
-    reasons.length === 0 ? 'good' : reasons.length === 1 ? 'ok' : 'bad';
-  return {score, reasons};
+  // 2. Probabilité de pluie
+  if (slot.precipProbability >= SCORE_WEIGHTS.PRECIP_PROB_HIGH_THRESHOLD) {
+    score += SCORE_WEIGHTS.PRECIP_PROB_HIGH;
+  } else if (slot.precipProbability >= SCORE_WEIGHTS.PRECIP_PROB_WARN_THRESHOLD) {
+    score += SCORE_WEIGHTS.PRECIP_PROB_WARN;
+  }
+
+  // 3. Température effective (avec correctif d'orientation)
+  const tempAdjust = ORIENTATION_TEMP_ADJUST[orientation] ?? 0;
+  const effectiveMinTemp = MIN_TEMP + tempAdjust;
+  if (slot.temperature < effectiveMinTemp) {
+    score -= (effectiveMinTemp - slot.temperature) * SCORE_WEIGHTS.TEMP_COLD_PER_DEG;
+  }
+
+  // 4. Vent fort
+  if (slot.windspeed > SCORE_WEIGHTS.WIND_STRONG_THRESHOLD) {
+    score += SCORE_WEIGHTS.WIND_STRONG_PENALTY;
+  }
+
+  // 5. Pluie récente × exposition au vent
+  const recentRainMm = rockType === 'fast' ? slot.recentRainMm6h : slot.recentRainMm24h;
+  if (recentRainMm > 0) {
+    const exposure = getWindExposure(slot.windDirection, orientation);
+    const exposureMultiplier =
+      exposure === 'sheltered'                                     ? SCORE_WEIGHTS.EXPOSURE_SHELTERED :
+      exposure === 'side'                                          ? SCORE_WEIGHTS.EXPOSURE_SIDE :
+      slot.windspeed >= MIN_WIND_DRYING                            ? SCORE_WEIGHTS.EXPOSURE_EXPOSED_STRONG :
+                                                                     SCORE_WEIGHTS.EXPOSURE_EXPOSED_WEAK;
+
+    score += SCORE_WEIGHTS.RECENT_RAIN_PER_MM * recentRainMm * exposureMultiplier;
+
+    // Bonus vent séchant : vent de face fort annule déjà le malus pluie via
+    // EXPOSURE_EXPOSED_STRONG = 0. On ajoute en plus un bonus si l'expo est favorable.
+  } else if (
+    slot.precipitation === 0 &&
+    getWindExposure(slot.windDirection, orientation) === 'exposed' &&
+    slot.windspeed >= MIN_WIND_DRYING
+  ) {
+    // Vent de face, pas de pluie : conditions idéales de séchage
+    score += SCORE_WEIGHTS.WIND_DRYING_BONUS;
+  }
+
+  return clamp(score);
 }
 
-// ─── Construction du forecast brut (sans orientation) ────────────────────────
+// ─── Score de base (sans orientation, pour les pins de la carte) ──────────────
+
+/**
+ * Score simplifié, sans correctif d'orientation.
+ * Utilisé par buildForecast pour le pin de la carte.
+ * Hypothèse conservatrice : séchage lent (pluie récente = pénalité pleine).
+ */
+function scoreSlotBase(slot: WeatherSlot): number {
+  let score = SCORE_WEIGHTS.BASE;
+
+  if (slot.precipitation > MAX_PRECIP) {
+    score += SCORE_WEIGHTS.PRECIP_ACTIVE_PER_MM * slot.precipitation;
+  } else {
+    if (WMO_CODES_STORM.has(slot.weatherCode)) {
+      score += SCORE_WEIGHTS.WMO_STORM_PENALTY;
+    } else if (WMO_CODES_SNOW.has(slot.weatherCode)) {
+      score += SCORE_WEIGHTS.WMO_SNOW_PENALTY;
+    } else if (WMO_CODES_RAIN.has(slot.weatherCode)) {
+      score += SCORE_WEIGHTS.WMO_HEAVY_RAIN_PENALTY;
+    } else if (WMO_CODES_CLEAR.has(slot.weatherCode)) {
+      score += SCORE_WEIGHTS.WMO_CLEAR_BONUS;
+    }
+  }
+
+  if (slot.precipProbability >= SCORE_WEIGHTS.PRECIP_PROB_HIGH_THRESHOLD) {
+    score += SCORE_WEIGHTS.PRECIP_PROB_HIGH;
+  } else if (slot.precipProbability >= SCORE_WEIGHTS.PRECIP_PROB_WARN_THRESHOLD) {
+    score += SCORE_WEIGHTS.PRECIP_PROB_WARN;
+  }
+
+  if (slot.temperature < MIN_TEMP) {
+    score -= (MIN_TEMP - slot.temperature) * SCORE_WEIGHTS.TEMP_COLD_PER_DEG;
+  }
+
+  // Pluie récente : hypothèse abritée (pénalité max) pour rester conservateur
+  if (slot.recentRainMm6h > 0) {
+    score += SCORE_WEIGHTS.RECENT_RAIN_PER_MM * slot.recentRainMm6h * SCORE_WEIGHTS.EXPOSURE_SHELTERED;
+  }
+
+  return clamp(score);
+}
+
+// ─── Construction du forecast brut ───────────────────────────────────────────
 
 /**
  * Transforme la réponse horaire Open-Meteo en WeatherForecast.
- * Les slots contiennent toutes les données brutes nécessaires au re-scoring
- * par orientation dans getSubSectorSummary.
- *
- * Le `score` du slot est calculé sans orientation (tempAdjust = 0, vent neutre)
- * et sert d'estimation générique pour l'affichage sur la carte.
+ * Le `numericScore` de chaque slot est calculé sans orientation (conservative),
+ * et sert d'estimation générique pour les pins de la carte.
  */
 export function buildForecast(hourly: OpenMeteoHourly): WeatherForecast {
   const slots: WeatherSlot[] = hourly.time.map((t, i) => {
     const date = t.slice(0, 10);
     const hour = parseInt(t.slice(11, 13), 10);
 
-    const precipitation = hourly.precipitation[i] ?? 0;
-    const precipProbability = hourly.precipitation_probability?.[i] ?? 0;
-    const weatherCode = hourly.weathercode[i] ?? 0;
-    const windspeed = hourly.windspeed_10m[i] ?? 0;
-    const windDirection = hourly.winddirection_10m?.[i] ?? 0;
-    const temperature = hourly.temperature_2m[i] ?? 0;
+    const precipitation       = hourly.precipitation[i] ?? 0;
+    const precipProbability   = hourly.precipitation_probability?.[i] ?? 0;
+    const weatherCode         = hourly.weathercode[i] ?? 0;
+    const windspeed           = hourly.windspeed_10m[i] ?? 0;
+    const windDirection       = hourly.winddirection_10m?.[i] ?? 0;
+    const temperature         = hourly.temperature_2m[i] ?? 0;
 
-    const start = Math.max(0, i - DRYING_LOOKBACK_H);
-    const recentRain = hourly.precipitation
-      .slice(start, i)
-      .some(p => p > MAX_PRECIP);
+    const start6  = Math.max(0, i - 6);
+    const start24 = Math.max(0, i - 24);
+    const recentRainMm6h  = hourly.precipitation.slice(start6,  i).reduce((s, p) => s + (p ?? 0), 0);
+    const recentRainMm24h = hourly.precipitation.slice(start24, i).reduce((s, p) => s + (p ?? 0), 0);
 
-    // Score générique (sans correctif d'orientation) pour les pins de la carte
-    let baseScore: WeatherScore = 'good';
-    if (precipitation > MAX_PRECIP || BAD_WEATHER_CODES.has(weatherCode)) {
-      baseScore = 'bad';
-    } else if (precipProbability >= PRECIP_PROB_BAD) {
-      baseScore = 'bad';
-    } else if (precipProbability >= PRECIP_PROB_WARN || recentRain) {
-      baseScore = 'ok';
-    } else if (temperature < MIN_TEMP) {
-      baseScore = 'ok';
-    }
-
-    return {
-      date,
-      hour,
-      score: baseScore,
+    const slot: WeatherSlot = {
+      date, hour,
+      score: 'good', // placeholder, recalculé ci-dessous
+      numericScore: 0,
       temperature,
       windspeed,
       windDirection,
       precipitation,
       precipProbability,
       weatherCode,
-      recentRain,
-      reasons: [],
+      recentRainMm6h,
+      recentRainMm24h,
     };
+
+    const numericScore = scoreSlotBase(slot);
+    return {...slot, numericScore, score: numericToWeatherScore(numericScore)};
   });
 
   return {slots, source: 'open-meteo', fetchedAt: new Date().toISOString()};
@@ -206,18 +280,10 @@ export function buildForecast(hourly: OpenMeteoHourly): WeatherForecast {
 // ─── Utilitaire timezone ──────────────────────────────────────────────────────
 
 /**
- * Convertit une date + heure exprimées en heure locale Europe/Paris
- * (timezone renvoyée par l'API Open-Meteo) vers un timestamp UTC en ms.
- *
- * Sans cette conversion, `new Date('2026-05-26T14:00')` serait interprété
- * comme l'heure locale du device, ce qui décale tous les créneaux de 1 à 2h
- * sur un émulateur en UTC ou sur un device hors de France.
- *
- * Algorithme : on calcule l'offset Paris/UTC à midi UTC ce jour-là (hors de
- * toute transition DST), puis on l'applique à l'heure voulue.
+ * Convertit une date + heure en heure locale Europe/Paris vers un timestamp UTC.
+ * Algorithme DST-aware : calcule l'offset Paris/UTC à midi UTC ce jour-là.
  */
 function parisLocalToUTC(dateStr: string, hour: number): number {
-  // Référence : UTC midi ce jour → heure Paris correspondante → offset DST
   const refUTC = new Date(`${dateStr}T12:00:00Z`).getTime();
   const parisNoon =
     parseInt(
@@ -227,57 +293,54 @@ function parisLocalToUTC(dateStr: string, hour: number): number {
         hour12: false,
       }),
       10,
-    ) % 24; // % 24 pour couvrir le cas "24" que certains moteurs JS émettent
-  const parisOffsetH = parisNoon - 12; // +1 hiver (CET), +2 été (CEST)
-
-  const utcMidnight = new Date(`${dateStr}T00:00:00Z`).getTime();
+    ) % 24;
+  const parisOffsetH = parisNoon - 12;
+  const utcMidnight  = new Date(`${dateStr}T00:00:00Z`).getTime();
   return utcMidnight + (hour - parisOffsetH) * 60 * 60 * 1000;
 }
 
 // ─── Résumé par sous-secteur ──────────────────────────────────────────────────
 
 /**
- * Calcule le score d'un sous-secteur sur les 48 prochaines heures de jour
- * (7h–20h) en tenant compte de l'orientation de la paroi.
+ * Calcule le meilleur score d'un sous-secteur sur les 72 prochaines heures de
+ * jour (7h–20h), avec correctif d'orientation et de type de roche.
  *
- * Retourne aussi la première fenêtre de créneaux "good" consécutifs pour
- * permettre à l'UI d'afficher "Mer. 14h–18h ✅" plutôt qu'un simple badge.
+ * Retourne aussi la première fenêtre de créneaux "good" consécutifs.
  */
 export function getSubSectorSummary(
   forecast: WeatherForecast,
   orientation: Orientation,
+  rockType: 'fast' | 'slow' = 'slow',
 ): SubSectorSummary {
-  const now = Date.now();
-  const cutoff = now + 48 * 60 * 60 * 1000;
+  const now    = Date.now();
+  const cutoff = now + 72 * 60 * 60 * 1000;
 
   const relevant = forecast.slots.filter(slot => {
     if (slot.hour < 7 || slot.hour > 20) return false;
-    // Convertir l'heure Paris (timezone API) en UTC avant de comparer à Date.now()
     const ts = parisLocalToUTC(slot.date, slot.hour);
     return ts > now && ts < cutoff;
   });
 
-  if (relevant.length === 0) return {score: 'bad', nextGoodWindow: null};
+  if (relevant.length === 0) return {score: 'bad', numericScore: 0, nextGoodWindow: null};
 
-  // Re-score chaque créneau avec l'orientation de cette paroi
+  // Score chaque créneau avec l'orientation et le type de roche
   const scored = relevant.map(slot => ({
     slot,
-    ...scoreSlotForOrientation(slot, orientation),
+    numericScore: scoreSlotNumeric(slot, orientation, rockType),
   }));
 
-  // Score global = meilleur score observé
-  let overallScore: WeatherScore = 'bad';
-  for (const {score} of scored) {
-    if (score === 'good') { overallScore = 'good'; break; }
-    if (score === 'ok')     overallScore = 'ok';
+  // Score global = meilleur score numérique observé
+  let bestNumericScore = 0;
+  for (const {numericScore} of scored) {
+    if (numericScore > bestNumericScore) bestNumericScore = numericScore;
   }
 
-  // Première fenêtre de créneaux "good" consécutifs (min 1 créneau)
+  // Première fenêtre de créneaux "good" consécutifs
   let nextGoodWindow: SubSectorSummary['nextGoodWindow'] = null;
   let windowStart: number | null = null;
 
   for (let i = 0; i <= scored.length; i++) {
-    const isGood = i < scored.length && scored[i].score === 'good';
+    const isGood = i < scored.length && scored[i].numericScore >= SCORE_WEIGHTS.THRESHOLD_GOOD;
     if (isGood && windowStart === null) {
       windowStart = i;
     } else if (!isGood && windowStart !== null) {
@@ -286,13 +349,15 @@ export function getSubSectorSummary(
       nextGoodWindow = {
         date: first.date,
         startHour: first.hour,
-        // +1 car last.hour est l'heure de DÉBUT du dernier créneau good ;
-        // un créneau à 17h couvre 17h00–18h00, donc la fenêtre se termine à 18h.
         endHour: last.hour + 1,
       };
       break;
     }
   }
 
-  return {score: overallScore, nextGoodWindow};
+  return {
+    score: numericToWeatherScore(bestNumericScore),
+    numericScore: bestNumericScore,
+    nextGoodWindow,
+  };
 }
