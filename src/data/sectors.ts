@@ -62,6 +62,50 @@ export const sectors: Sector[] = [
       {id: 'ile-primel-ecuador-est',             name: 'Ecuador face Est',             orientation: 'E',  rockType: 'fast'},
     ],
   },
+  {
+    id: 'pen-hir',
+    name: 'Pointe de Pen-Hir',
+    latitude: 48.258449,
+    longitude: -4.621312,
+    altitude: 50,
+    notes:
+      'Quartzite (grès armoricain), ambiance marine engagée. Accès 90 % des voies en rappel — maîtriser la manœuvre. Attention marée et houle sur les secteurs bas.',
+    subSectors: [
+      // ── Face W ─────────────────────────────────────────────────────────────
+      {id: 'pen-hir-grande-falaise',        name: 'Grande falaise',            orientation: 'W',  rockType: 'fast',
+        notes: "Falaise principale, 40-70 m. Voies d'aventure (65 %). 90 % accès en rappel."},
+      {id: 'pen-hir-dalle-de-paul',         name: 'Dalle de Paul',             orientation: 'W',  rockType: 'fast'},
+      {id: 'pen-hir-dalle-blanche',         name: 'Dalle blanche',             orientation: 'W',  rockType: 'fast'},
+      {id: 'pen-hir-dalle-noire-ys',        name: 'Dalle noire / Ys',          orientation: 'W',  rockType: 'fast'},
+      {id: 'pen-hir-dalle-aux-obus',        name: 'Dalle aux obus',            orientation: 'W',  rockType: 'fast'},
+      {id: 'pen-hir-cirque-courants-d-air', name: "Cirque des courants d'air", orientation: 'W',  rockType: 'fast'},
+      {id: 'pen-hir-arche-de-noe',          name: 'Arche de Noé',              orientation: 'W',  rockType: 'fast'},
+      // ── Face NW ────────────────────────────────────────────────────────────
+      {id: 'pen-hir-dalle-grise',           name: 'Dalle grise',               orientation: 'NW', rockType: 'fast'},
+      {id: 'pen-hir-gwen-ha-du',            name: 'Gwen ha du',                orientation: 'NW', rockType: 'fast'},
+      {id: 'pen-hir-dalle-des-pecheurs',    name: 'Dalle des pêcheurs',        orientation: 'NW', rockType: 'fast'},
+      // ── Face N ─────────────────────────────────────────────────────────────
+      {id: 'pen-hir-menhir',                name: 'Menhir',                    orientation: 'N',  rockType: 'fast',
+        notes: 'Accès par rappels obligatoires (végétation fragile). Orientation multiple (N, E, O).'},
+      {id: 'pen-hir-chateau-de-cartes',     name: 'Le château de cartes',      orientation: 'N',  rockType: 'fast'},
+      {id: 'pen-hir-face-nord',             name: 'Face nord',                 orientation: 'N',  rockType: 'slow'},
+      // ── Face NE ────────────────────────────────────────────────────────────
+      {id: 'pen-hir-banquise',              name: 'Banquise',                  orientation: 'NE', rockType: 'fast'},
+      // ── Face E ─────────────────────────────────────────────────────────────
+      {id: 'pen-hir-crique',                name: 'La crique',                 orientation: 'E',  rockType: 'fast'},
+      {id: 'pen-hir-dalle-des-debutants',   name: 'Dalle des débutants',       orientation: 'E',  rockType: 'fast',
+        notes: '23 voies, 10-25 m, 3b-5b. Casque obligatoire (chutes de pierres fréquentes). Suivre sentiers balisés.'},
+      {id: 'pen-hir-grand-daouet',          name: 'Le grand Daouët',           orientation: 'E',  rockType: 'fast',
+        notes: 'Pilier isolé. Descente en rappel, attention marée & oiseaux (nidification).'},
+      // ── Face S ─────────────────────────────────────────────────────────────
+      {id: 'pen-hir-quai-des-brumes',       name: 'Quai des brumes',           orientation: 'S',  rockType: 'fast'},
+      // ── Face SW ────────────────────────────────────────────────────────────
+      {id: 'pen-hir-batardes',              name: 'Les bâtardes',              orientation: 'SW', rockType: 'fast'},
+      {id: 'pen-hir-breche',                name: 'La brèche',                 orientation: 'SW', rockType: 'fast', notes: 'Descente en rappel, attention à la marée.'},
+      {id: 'pen-hir-grande-faille',         name: 'La grande faille',          orientation: 'SW', rockType: 'fast'},
+      {id: 'pen-hir-toons-land',            name: "Toon's land",               orientation: 'SW', rockType: 'fast'},
+    ],
+  },
 
   {
     id: 'buoux',
