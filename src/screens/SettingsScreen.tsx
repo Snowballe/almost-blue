@@ -11,7 +11,7 @@ import {MaterialIcons} from '@react-native-vector-icons/material-icons/static';
 import {useSettingsStore} from '../stores/useSettingsStore';
 import {isDegenerate} from '../utils/seasonLogic';
 import MonthDayPicker, {formatSeasonBound} from '../components/MonthDayPicker';
-import {sendTestNotification, checkAndNotify} from '../services/notificationService';
+import {sendTestNotification, checkAndNotify, sendDailyDigest} from '../services/notificationService';
 import {useNotificationStore} from '../stores/useNotificationStore';
 import {useTheme, AppTheme, ACTIVE_OPACITY} from '../theme';
 import SectionHeader from '../components/settings/SectionHeader';
@@ -101,6 +101,7 @@ export default function SettingsScreen() {
     notificationsEnabled,
     checkIntervalMinutes,
     notificationsInSummer,
+    digestEnabled,
     hibernationEnabled,
     colorScheme,
     offseasonStart,
@@ -108,6 +109,7 @@ export default function SettingsScreen() {
     setNotificationsEnabled,
     setCheckIntervalMinutes,
     setNotificationsInSummer,
+    setDigestEnabled,
     setHibernationEnabled,
     setColorScheme,
     setOffseasonStart,
@@ -138,6 +140,12 @@ export default function SettingsScreen() {
             <IntervalSelector
               value={checkIntervalMinutes}
               onChange={setCheckIntervalMinutes}
+            />
+            <ToggleRow
+              label="Résumé quotidien"
+              description="Récap des secteurs favoris chaque matin à 10h."
+              value={digestEnabled}
+              onValueChange={setDigestEnabled}
             />
             <ToggleRow
               label="Alertes en été"
@@ -229,6 +237,17 @@ export default function SettingsScreen() {
           }}
           activeOpacity={ACTIVE_OPACITY}>
           <Text style={styles.debugBtnText}>Forcer un check météo (ignore la saison)</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.debugBtn}
+          onPress={() => {
+            sendDailyDigest(true).catch(e =>
+              console.warn('[Debug] sendDailyDigest échoué :', e),
+            );
+          }}
+          activeOpacity={ACTIVE_OPACITY}>
+          <Text style={styles.debugBtnText}>Tester le digest quotidien</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
