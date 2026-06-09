@@ -166,8 +166,9 @@ export const sectors: Sector[] = [
   {
     id: 'imperatrice-plougastel',
     name: "L'Impératrice",
-    latitude: 0,   // ⚠️ À remplacer par les vraies coordonnées GPS
-    longitude: 0,  // ⚠️ À remplacer par les vraies coordonnées GPS
+    //48.388395, -4.376536
+    latitude: 48.388395,   // ⚠️ À remplacer par les vraies coordonnées GPS
+    longitude: -4.376536,  // ⚠️ À remplacer par les vraies coordonnées GPS
     altitude: 80,  // estimation — falaise dans les bois de Plougastel (~80 m NGF)
     notes:
       'Granit breton, Plougastel-Daoulas (29). Terrain privé — comportement respectueux ' +
