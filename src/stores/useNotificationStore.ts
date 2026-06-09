@@ -11,6 +11,9 @@ interface NotificationStore {
   lastScores: Record<string, WeatherScore>;
   setScores: (scores: Record<string, WeatherScore>) => void;
   clearScores: () => void;
+  /** Date ISO du dernier digest envoyé ("2026-06-09"). Null si jamais envoyé. */
+  lastDigestDate: string | null;
+  setLastDigestDate: (date: string) => void;
 }
 
 export const useNotificationStore = create<NotificationStore>()(
@@ -19,6 +22,8 @@ export const useNotificationStore = create<NotificationStore>()(
       lastScores: {},
       setScores: scores => set({lastScores: scores}),
       clearScores: () => set({lastScores: {}}),
+      lastDigestDate: null,
+      setLastDigestDate: date => set({lastDigestDate: date}),
     }),
     {
       name: 'notification-store',
