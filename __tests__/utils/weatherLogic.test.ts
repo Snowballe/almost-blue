@@ -454,4 +454,13 @@ describe('getSubSectorSummary', () => {
     const summary = getSubSectorSummary(makeForecast(slots), 'S');
     expect(summary.score).toBe('good');
   });
+
+  // now = 2026-06-15T10:00Z → cutoff 72h = 2026-06-18T10:00Z, cutoff 168h = 2026-06-22T10:00Z
+  // Paris 14h le 19/06 = UTC 12h → hors 72h mais dans 168h
+  it('horizonHours=168 inclut un slot à J+4 exclu en 72h', () => {
+    const slotJ4 = makeSlot('2026-06-19', 14);
+    const forecast = makeForecast([slotJ4]);
+    expect(getSubSectorSummary(forecast, 'S', 'slow', 72).score).toBe('bad');
+    expect(getSubSectorSummary(forecast, 'S', 'slow', 168).score).toBe('good');
+  });
 });

@@ -1,7 +1,7 @@
 import {useNotificationStore} from '../../src/stores/useNotificationStore';
 
 beforeEach(() => {
-  useNotificationStore.setState({lastScores: {}});
+  useNotificationStore.setState({lastScores: {}, lastDigestDate: null});
 });
 
 describe('état initial', () => {
@@ -42,5 +42,22 @@ describe('clearScores', () => {
   it('est idempotent sur un store déjà vide', () => {
     useNotificationStore.getState().clearScores();
     expect(useNotificationStore.getState().lastScores).toEqual({});
+  });
+});
+
+describe('lastDigestDate', () => {
+  it('est null par défaut', () => {
+    expect(useNotificationStore.getState().lastDigestDate).toBeNull();
+  });
+
+  it('setLastDigestDate met à jour la date', () => {
+    useNotificationStore.getState().setLastDigestDate('2026-12-15');
+    expect(useNotificationStore.getState().lastDigestDate).toBe('2026-12-15');
+  });
+
+  it('setLastDigestDate écrase la date précédente', () => {
+    useNotificationStore.getState().setLastDigestDate('2026-12-15');
+    useNotificationStore.getState().setLastDigestDate('2026-12-16');
+    expect(useNotificationStore.getState().lastDigestDate).toBe('2026-12-16');
   });
 });

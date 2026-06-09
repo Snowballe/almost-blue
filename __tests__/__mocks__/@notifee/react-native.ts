@@ -17,6 +17,12 @@ export enum AuthorizationStatus {
   NOT_DETERMINED = -1,
 }
 
+export enum AndroidStyle {
+  BIGTEXT = 0,
+  INBOX   = 1,
+  IMAGE   = 2,
+}
+
 const notifee = {
   requestPermission: jest.fn(() =>
     Promise.resolve({authorizationStatus: AuthorizationStatus.AUTHORIZED}),

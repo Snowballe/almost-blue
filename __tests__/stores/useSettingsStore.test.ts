@@ -11,6 +11,7 @@ beforeEach(() => {
     offseasonStart:        OFFSEASON_START,
     offseasonEnd:          OFFSEASON_END,
     overrideHibernation:   false,
+    digestEnabled:         true,
   });
 });
 
@@ -44,6 +45,10 @@ describe('état initial', () => {
 
   it('overrideHibernation désactivé par défaut', () => {
     expect(useSettingsStore.getState().overrideHibernation).toBe(false);
+  });
+
+  it('digest activé par défaut', () => {
+    expect(useSettingsStore.getState().digestEnabled).toBe(true);
   });
 });
 
@@ -84,6 +89,27 @@ describe('setters', () => {
   it('setOverrideHibernation met à jour overrideHibernation', () => {
     useSettingsStore.getState().setOverrideHibernation(true);
     expect(useSettingsStore.getState().overrideHibernation).toBe(true);
+  });
+
+  it('setDigestEnabled met à jour digestEnabled', () => {
+    useSettingsStore.getState().setDigestEnabled(false);
+    expect(useSettingsStore.getState().digestEnabled).toBe(false);
+  });
+});
+
+// ─── resetAll ────────────────────────────────────────────────────────────────
+
+describe('resetAll', () => {
+  it('remet digestEnabled à true', () => {
+    useSettingsStore.getState().setDigestEnabled(false);
+    useSettingsStore.getState().resetAll();
+    expect(useSettingsStore.getState().digestEnabled).toBe(true);
+  });
+
+  it('remet notificationsEnabled à true', () => {
+    useSettingsStore.getState().setNotificationsEnabled(false);
+    useSettingsStore.getState().resetAll();
+    expect(useSettingsStore.getState().notificationsEnabled).toBe(true);
   });
 });
 
