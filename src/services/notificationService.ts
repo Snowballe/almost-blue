@@ -8,7 +8,7 @@
  *  4. Les nouveaux scores sont persistés dans useNotificationStore.
  */
 
-import notifee, {AndroidImportance} from '@notifee/react-native';
+import notifee, {AndroidImportance, AndroidStyle} from '@notifee/react-native';
 import {sectors} from '../data/sectors';
 import {useSectorsStore} from '../stores/useSectorsStore';
 import {useSettingsStore} from '../stores/useSettingsStore';
@@ -16,7 +16,7 @@ import {useNotificationStore} from '../stores/useNotificationStore';
 import {getCachedForecast} from './openMeteo';
 import {getSubSectorSummary} from '../utils/weatherLogic';
 import {isOffSeason} from '../utils/seasonLogic';
-import {WeatherScore} from '../types/weather';
+import {WeatherForecast, WeatherScore} from '../types/weather';
 import {Sector, Orientation} from '../types/sector';
 import {ORIENTATION_FR} from '../utils/orientationUtils';
 
@@ -181,4 +181,152 @@ export async function checkAndNotify(force = false): Promise<void> {
   }
 
   setScores(newScores);
+}
+
+// ── Digest quotidien ──────────────────────────────────────────────────────────
+
+const DIGEST_HORIZON_HOURS = 168; // 7 jours
+
+function todayParis(): string {
+  return new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/Paris'}).format(new Date());
+}
+
+function tomorrowParis(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/Paris'}).format(d);
+}
+
+/**
+ * Formate la disponibilité d'une fenêtre météo favorable pour le digest.
+ * Ex : "grimpable aujourd'hui !", "dans 3 jours (mercredi)", "aucune fenêtre cette semaine"
+ */
+export function formatNextWindow(
+  nextGoodWindow: {date: string; startHour: number; endHour: number} | null,
+): string {
+  if (!nextGoodWindow) {
+    return 'aucune fenêtre cette semaine';
+  }
+
+  const today    = todayParis();
+  const tomorrow = tomorrowParis();
+
+  if (nextGoodWindow.date === today)    return "grimpable aujourd'hui !";
+  if (nextGoodWindow.date === tomorrow) return 'grimpable demain';
+
+  const todayMs  = new Date(today    + 'T12:00:00Z').getTime();
+  const windowMs = new Date(nextGoodWindow.date + 'T12:00:00Z').getTime();
+  const diffDays = Math.round((windowMs - todayMs) / 86_400_000);
+
+  const weekday = new Date(nextGoodWindow.date + 'T12:00:00Z')
+    .toLocaleDateString('fr-FR', {weekday: 'long'});
+
+  return `dans ${diffDays} jours (${weekday})`;
+}
+
+/**
+ * Construit les lignes du digest à partir des forecasts déjà fetchés.
+ * Une ligne par secteur, orientation la plus favorable sur 7 jours.
+ */
+export function buildDigestLines(
+  favSectors: Sector[],
+  forecasts: Map<string, WeatherForecast>,
+): string[] {
+  const lines: string[] = [];
+
+  for (const sector of favSectors) {
+    const forecast = forecasts.get(sector.id);
+    if (!forecast) continue;
+
+    // Dédupliquer les orientations, garder le premier sous-secteur représentatif
+    const orientationMap = new Map<Orientation, string>();
+    for (const ss of sector.subSectors) {
+      if (!orientationMap.has(ss.orientation)) {
+        orientationMap.set(ss.orientation, ss.name);
+      }
+    }
+    if (orientationMap.size === 0) continue;
+
+    // Choisir l'orientation avec le meilleur score numérique sur 7 jours
+    let bestScore = -1;
+    let bestOrientation: Orientation | null = null;
+    let bestWindow: {date: string; startHour: number; endHour: number} | null = null;
+
+    for (const [orientation] of orientationMap) {
+      const rockType =
+        sector.subSectors.find(ss => ss.orientation === orientation)?.rockType ?? 'slow';
+      const summary = getSubSectorSummary(forecast, orientation, rockType, DIGEST_HORIZON_HOURS);
+      if (summary.numericScore > bestScore) {
+        bestScore       = summary.numericScore;
+        bestOrientation = orientation;
+        bestWindow      = summary.nextGoodWindow;
+      }
+    }
+
+    if (!bestOrientation) continue;
+
+    const faceLabel = ORIENTATION_FR[bestOrientation] ?? bestOrientation;
+    const status    = formatNextWindow(bestWindow);
+    lines.push(`${sector.name} — Face ${faceLabel} : ${status}`);
+  }
+
+  return lines;
+}
+
+/**
+ * Envoie la notification de digest quotidien.
+ * Guards : notificationsEnabled, digestEnabled, et lastDigestDate (anti-doublon).
+ * Passer force=true pour bypasser lastDigestDate (bouton debug).
+ */
+export async function sendDailyDigest(force = false): Promise<void> {
+  await Promise.allSettled([
+    useSettingsStore.persist.rehydrate(),
+    useSectorsStore.persist.rehydrate(),
+    useNotificationStore.persist.rehydrate(),
+  ]);
+
+  const {notificationsEnabled, digestEnabled} = useSettingsStore.getState();
+  if (!notificationsEnabled || !digestEnabled) return;
+
+  const {favoriteIds} = useSectorsStore.getState();
+  if (favoriteIds.length === 0) return;
+
+  const {lastDigestDate, setLastDigestDate} = useNotificationStore.getState();
+  const today = todayParis();
+  if (!force && lastDigestDate === today) return;
+
+  const favSectors = sectors.filter(s => favoriteIds.includes(s.id));
+  const forecasts  = new Map<string, WeatherForecast>();
+
+  for (const sector of favSectors) {
+    try {
+      forecasts.set(sector.id, await getCachedForecast(sector.latitude, sector.longitude));
+    } catch {
+      // Erreur réseau → ce secteur sera absent de la map, buildDigestLines le skipera
+    }
+  }
+
+  const lines = buildDigestLines(favSectors, forecasts);
+  if (lines.length === 0) return;
+
+  const dateStr = new Intl.DateTimeFormat('fr-FR', {
+    day:   '2-digit',
+    month: '2-digit',
+    timeZone: 'Europe/Paris',
+  }).format(new Date());
+
+  const body = lines.join('\n');
+
+  await notifee.displayNotification({
+    title: `Résumé grimpe · ${dateStr}`,
+    body,
+    android: {
+      channelId: CHANNEL_ID,
+      pressAction: {id: 'default'},
+      style: {type: AndroidStyle.BIGTEXT, text: body},
+    },
+    ios: {sound: 'default'},
+  });
+
+  setLastDigestDate(today);
 }
