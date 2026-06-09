@@ -311,9 +311,10 @@ export function getSubSectorSummary(
   forecast: WeatherForecast,
   orientation: Orientation,
   rockType: 'fast' | 'slow' = 'slow',
+  horizonHours: number = 72,
 ): SubSectorSummary {
   const now    = Date.now();
-  const cutoff = now + 72 * 60 * 60 * 1000;
+  const cutoff = now + horizonHours * 60 * 60 * 1000;
 
   const relevant = forecast.slots.filter(slot => {
     if (slot.hour < 7 || slot.hour > 20) return false;
