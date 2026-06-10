@@ -54,9 +54,10 @@ function setupDefaults(): void {
     offseasonEnd:          OFFSEASON_END,
     overrideHibernation:   false,
     digestEnabled:         true,
+    digestHour:            10,
   });
   useSectorsStore.setState({favoriteIds: ['buoux']});
-  useNotificationStore.setState({lastScores: {}, lastDigestDate: null});
+  useNotificationStore.setState({lastScores: {}, lastDigestDate: null, lastDigestSummary: null});
 
   // Par défaut : retourne 'bad' pour toutes les orientations
   mockGetSubSectorSummary.mockReturnValue({score: 'bad', numericScore: 2, nextGoodWindow: null});
@@ -98,7 +99,10 @@ describe("gardes d'entrée", () => {
   it('notifie en été si notificationsInSummer=true', async () => {
     jest.setSystemTime(new Date('2026-07-15T10:00:00Z'));
     useSettingsStore.setState({notificationsInSummer: true});
-    mockGetSubSectorSummary.mockReturnValue({score: 'good', numericScore: 8, nextGoodWindow: null});
+    mockGetSubSectorSummary.mockReturnValue({
+      score: 'good', numericScore: 8,
+      nextGoodWindow: {date: '2026-07-15', startHour: 10, endHour: 18},
+    });
     await checkAndNotify();
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
   });
@@ -117,12 +121,14 @@ describe('détection de transition bad → good', () => {
     useNotificationStore.setState({lastScores: {'buoux:S': 'bad'}});
     mockGetSubSectorSummary.mockImplementation((_f: unknown, orientation: string) =>
       orientation === 'S'
-        ? {score: 'good', numericScore: 8, nextGoodWindow: null}
+        ? {score: 'good', numericScore: 8, nextGoodWindow: {date: '2026-12-15', startHour: 10, endHour: 18}}
         : {score: 'bad',  numericScore: 2, nextGoodWindow: null},
     );
     await checkAndNotify();
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
-    expect(mockDisplayNotification.mock.calls[0][0].title).toBe('Conditions favorables');
+    const title: string = mockDisplayNotification.mock.calls[0][0].title;
+    expect(title).toContain('Falaise de Buoux');
+    expect(title).toContain("grimpable aujourd'hui !");
   });
 
   it("ne notifie pas si toutes les orientations étaient déjà good (pas de transition)", async () => {
@@ -135,7 +141,10 @@ describe('détection de transition bad → good', () => {
 
   it('force=true déclenche même si notificationsEnabled=false', async () => {
     useSettingsStore.setState({notificationsEnabled: false});
-    mockGetSubSectorSummary.mockReturnValue({score: 'good', numericScore: 8, nextGoodWindow: null});
+    mockGetSubSectorSummary.mockReturnValue({
+      score: 'good', numericScore: 8,
+      nextGoodWindow: {date: '2026-12-15', startHour: 10, endHour: 18},
+    });
     await checkAndNotify(true);
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
   });
@@ -145,46 +154,48 @@ describe('détection de transition bad → good', () => {
 // Buoux : orientations dédupliquées S (Le Toit) + SE (La Dalle) — 2 orientations
 
 describe('corps du message', () => {
-  it('une seule orientation good → "La face X de … est sèche"', async () => {
-    // S passe de bad à good ; SE reste bad
-    useNotificationStore.setState({lastScores: {'buoux:SE': 'good'}});
+  it('une seule orientation good → "La face X est sèche" (sector name dans le titre)', async () => {
+    useNotificationStore.setState({lastScores: {'buoux:SE': 'good', 'buoux:S': 'bad'}});
     mockGetSubSectorSummary.mockImplementation((_f: unknown, orientation: string) =>
       orientation === 'S'
-        ? {score: 'good', numericScore: 8, nextGoodWindow: null}
+        ? {score: 'good', numericScore: 8, nextGoodWindow: {date: '2026-12-15', startHour: 10, endHour: 18}}
         : {score: 'good', numericScore: 8, nextGoodWindow: null}, // SE déjà good → pas de transition
     );
-    // SE était good → no transition ; seul S transite
-    useNotificationStore.setState({lastScores: {'buoux:SE': 'good', 'buoux:S': 'bad'}});
     await checkAndNotify();
-    const body: string = mockDisplayNotification.mock.calls[0][0].body;
-    expect(body).toMatch(/^La face Sud de Falaise de Buoux est sèche/);
-    expect(body).toContain('Le Toit');
+    const call = mockDisplayNotification.mock.calls[0][0];
+    expect(call.title).toContain('Falaise de Buoux');
+    expect(call.body).toMatch(/^La face Sud est sèche/);
+    expect(call.body).toContain('Le Toit');
   });
 
-  it('deux orientations good sur trois → "Les faces X et Y de … sont sèches"', async () => {
+  it('deux orientations good sur trois → "Les faces X et Y sont sèches"', async () => {
     // verdon-escalès : 3 orientations uniques — S (Luna Bong), E (Dalle du Fond), N (Rive Gauche)
-    // S et E passent à good, N reste bad → goodOrientations.length (2) !== totalOrientations (3)
     useSectorsStore.setState({favoriteIds: ['verdon-escalès']});
     useNotificationStore.setState({lastScores: {}});
     mockGetSubSectorSummary.mockImplementation((_f: unknown, orientation: string) =>
       orientation === 'N'
         ? {score: 'bad',  numericScore: 2, nextGoodWindow: null}
-        : {score: 'good', numericScore: 8, nextGoodWindow: null},
+        : {score: 'good', numericScore: 8, nextGoodWindow: {date: '2026-12-15', startHour: 10, endHour: 18}},
     );
     await checkAndNotify();
-    const body: string = mockDisplayNotification.mock.calls[0][0].body;
-    expect(body).toMatch(/Les faces.*et.*sont sèches/);
-    expect(body).toContain('Verdon');
+    const call = mockDisplayNotification.mock.calls[0][0];
+    expect(call.title).toContain('Verdon');
+    expect(call.body).toMatch(/Les faces.*et.*sont sèches/);
+    expect(call.body).not.toContain('Verdon');
   });
 
-  it('toutes les orientations good → "Toutes les faces de …"', async () => {
+  it('toutes les orientations good → "Toutes les faces sont sèches !" (sector name dans le titre)', async () => {
     // verdon-escalès : les 3 orientations transitent toutes → goodOrientations.length === 3
     useSectorsStore.setState({favoriteIds: ['verdon-escalès']});
     useNotificationStore.setState({lastScores: {}});
-    mockGetSubSectorSummary.mockReturnValue({score: 'good', numericScore: 8, nextGoodWindow: null});
+    mockGetSubSectorSummary.mockReturnValue({
+      score: 'good', numericScore: 8,
+      nextGoodWindow: {date: '2026-12-15', startHour: 10, endHour: 18},
+    });
     await checkAndNotify();
-    const body: string = mockDisplayNotification.mock.calls[0][0].body;
-    expect(body).toBe('Toutes les faces de Verdon — Escalès sont sèches !');
+    const call = mockDisplayNotification.mock.calls[0][0];
+    expect(call.title).toContain('Verdon');
+    expect(call.body).toBe('Toutes les faces sont sèches !');
   });
 });
 
@@ -305,15 +316,29 @@ describe('sendDailyDigest — gardes d\'entrée', () => {
     expect(mockDisplayNotification).not.toHaveBeenCalled();
   });
 
-  it('ne notifie pas si lastDigestDate correspond à aujourd\'hui (anti-doublon)', async () => {
-    // todayParis avec WINTER_DATE = 2026-12-15T10:00Z → Paris = "2026-12-15"
-    useNotificationStore.setState({lastScores: {}, lastDigestDate: '2026-12-15'});
+  it('ne notifie pas si lastDigestSummary est identique au contenu actuel', async () => {
+    const sameBody = 'Falaise de Buoux — Face Sud : aucune fenêtre cette semaine';
+    useNotificationStore.setState({lastScores: {}, lastDigestDate: null, lastDigestSummary: sameBody});
     await sendDailyDigest();
     expect(mockDisplayNotification).not.toHaveBeenCalled();
   });
 
-  it('force=true bypasse la garde lastDigestDate', async () => {
-    useNotificationStore.setState({lastScores: {}, lastDigestDate: '2026-12-15'});
+  it('notifie si lastDigestSummary est différent du contenu actuel', async () => {
+    useNotificationStore.setState({lastScores: {}, lastDigestDate: null, lastDigestSummary: 'ancien contenu'});
+    await sendDailyDigest();
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('ne notifie pas si lastDigestDate correspond à aujourd\'hui (garde anti-doublon intra-journalier)', async () => {
+    // todayParis avec WINTER_DATE = 2026-12-15T10:00Z → Paris = "2026-12-15"
+    useNotificationStore.setState({lastScores: {}, lastDigestDate: '2026-12-15', lastDigestSummary: null});
+    await sendDailyDigest();
+    expect(mockDisplayNotification).not.toHaveBeenCalled();
+  });
+
+  it('force=true bypasse lastDigestSummary et lastDigestDate', async () => {
+    const sameBody = 'Falaise de Buoux — Face Sud : aucune fenêtre cette semaine';
+    useNotificationStore.setState({lastScores: {}, lastDigestDate: '2026-12-15', lastDigestSummary: sameBody});
     await sendDailyDigest(true);
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
   });
@@ -346,6 +371,13 @@ describe('sendDailyDigest — envoi nominal', () => {
   it('met à jour lastDigestDate après l\'envoi', async () => {
     await sendDailyDigest();
     expect(useNotificationStore.getState().lastDigestDate).toBe('2026-12-15');
+  });
+
+  it('met à jour lastDigestSummary après l\'envoi', async () => {
+    await sendDailyDigest();
+    expect(useNotificationStore.getState().lastDigestSummary).toBe(
+      'Falaise de Buoux — Face Sud : aucune fenêtre cette semaine',
+    );
   });
 
   it('le corps du message mentionne le secteur favori', async () => {

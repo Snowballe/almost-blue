@@ -1,7 +1,7 @@
 import {useNotificationStore} from '../../src/stores/useNotificationStore';
 
 beforeEach(() => {
-  useNotificationStore.setState({lastScores: {}, lastDigestDate: null});
+  useNotificationStore.setState({lastScores: {}, lastDigestDate: null, lastDigestSummary: null});
 });
 
 describe('état initial', () => {
@@ -59,5 +59,28 @@ describe('lastDigestDate', () => {
     useNotificationStore.getState().setLastDigestDate('2026-12-15');
     useNotificationStore.getState().setLastDigestDate('2026-12-16');
     expect(useNotificationStore.getState().lastDigestDate).toBe('2026-12-16');
+  });
+});
+
+describe('lastDigestSummary', () => {
+  it('est null par défaut', () => {
+    expect(useNotificationStore.getState().lastDigestSummary).toBeNull();
+  });
+
+  it('setLastDigestSummary met à jour le résumé', () => {
+    useNotificationStore.getState().setLastDigestSummary('Buoux — Face Sud : grimpable demain');
+    expect(useNotificationStore.getState().lastDigestSummary).toBe('Buoux — Face Sud : grimpable demain');
+  });
+
+  it('setLastDigestSummary écrase la valeur précédente', () => {
+    useNotificationStore.getState().setLastDigestSummary('ancien');
+    useNotificationStore.getState().setLastDigestSummary('nouveau');
+    expect(useNotificationStore.getState().lastDigestSummary).toBe('nouveau');
+  });
+
+  it('setLastDigestSummary accepte null (remise à zéro)', () => {
+    useNotificationStore.getState().setLastDigestSummary('contenu');
+    useNotificationStore.getState().setLastDigestSummary(null);
+    expect(useNotificationStore.getState().lastDigestSummary).toBeNull();
   });
 });
