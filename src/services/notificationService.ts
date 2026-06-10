@@ -9,6 +9,7 @@
  */
 
 import notifee, {AndroidImportance, AndroidStyle} from '@notifee/react-native';
+import BackgroundFetch from 'react-native-background-fetch';
 import {sectors} from '../data/sectors';
 import {useSectorsStore} from '../stores/useSectorsStore';
 import {useSettingsStore} from '../stores/useSettingsStore';
@@ -21,10 +22,12 @@ import {Sector, Orientation} from '../types/sector';
 import {ORIENTATION_FR} from '../utils/orientationUtils';
 
 const CHANNEL_ID = 'weather-alerts';
+export const DIGEST_TASK_ID = 'daily-digest';
 
 interface GoodOrientation {
   orientation: Orientation;
   subSectorName: string;
+  nextGoodWindow: {date: string; startHour: number; endHour: number} | null;
 }
 
 // ── Canal Android ─────────────────────────────────────────────────────────────
@@ -45,13 +48,11 @@ export async function initNotificationChannel(): Promise<void> {
 // ── Construction du message ───────────────────────────────────────────────────
 
 function buildNotificationBody(
-  sector: Sector,
   goodOrientations: GoodOrientation[],
   totalOrientations: number,
 ): string {
-  // Toutes les orientations du secteur sont bonnes
   if (goodOrientations.length === totalOrientations) {
-    return `Toutes les faces de ${sector.name} sont sèches !`;
+    return 'Toutes les faces sont sèches !';
   }
 
   const faces = goodOrientations.map(
@@ -60,12 +61,29 @@ function buildNotificationBody(
   const subName = goodOrientations[0].subSectorName;
 
   if (faces.length === 1) {
-    return `La face ${faces[0]} de ${sector.name} est sèche. Allez sur ${subName}.`;
+    return `La face ${faces[0]} est sèche. Allez sur ${subName}.`;
   }
 
   const facesStr =
     faces.slice(0, -1).join(', ') + ' et ' + faces[faces.length - 1];
-  return `Les faces ${facesStr} de ${sector.name} sont sèches. Allez sur ${subName}.`;
+  return `Les faces ${facesStr} sont sèches. Allez sur ${subName}.`;
+}
+
+function getEarliestWindow(
+  goodOrientations: GoodOrientation[],
+): {date: string; startHour: number; endHour: number} | null {
+  let earliest: {date: string; startHour: number; endHour: number} | null = null;
+  for (const {nextGoodWindow} of goodOrientations) {
+    if (!nextGoodWindow) continue;
+    if (
+      !earliest ||
+      nextGoodWindow.date < earliest.date ||
+      (nextGoodWindow.date === earliest.date && nextGoodWindow.startHour < earliest.startHour)
+    ) {
+      earliest = nextGoodWindow;
+    }
+  }
+  return earliest;
 }
 
 // ── Envoi d'une notification ──────────────────────────────────────────────────
@@ -75,9 +93,10 @@ async function sendSectorNotification(
   goodOrientations: GoodOrientation[],
   totalOrientations: number,
 ): Promise<void> {
+  const timing = formatNextWindow(getEarliestWindow(goodOrientations));
   await notifee.displayNotification({
-    title: 'Conditions favorables',
-    body: buildNotificationBody(sector, goodOrientations, totalOrientations),
+    title: `${sector.name} — ${timing}`,
+    body: buildNotificationBody(goodOrientations, totalOrientations),
     android: {
       channelId: CHANNEL_ID,
       pressAction: {id: 'default'},
@@ -165,11 +184,11 @@ export async function checkAndNotify(force = false): Promise<void> {
       const key = `${sector.id}:${orientation}`;
       // Cherche le rockType du premier sous-secteur avec cette orientation
       const rockType = sector.subSectors.find(ss => ss.orientation === orientation)?.rockType ?? 'slow';
-      const {score} = getSubSectorSummary(forecast, orientation, rockType);
+      const {score, nextGoodWindow} = getSubSectorSummary(forecast, orientation, rockType);
       const wasGood = lastScores[key] === 'good';
 
       if (score === 'good' && !wasGood) {
-        newlyGood.push({orientation, subSectorName});
+        newlyGood.push({orientation, subSectorName, nextGoodWindow});
       }
 
       newScores[key] = score;
@@ -181,6 +200,31 @@ export async function checkAndNotify(force = false): Promise<void> {
   }
 
   setScores(newScores);
+}
+
+// ── Planification du digest ───────────────────────────────────────────────────
+
+/**
+ * Planifie le prochain digest pour aujourd'hui (si l'heure n'est pas encore passée)
+ * ou pour demain, à l'heure configurée dans le store.
+ * Utilisable depuis un contexte React et depuis la tâche headless Android.
+ */
+export function scheduleNextDigest(): void {
+  const {digestHour, notificationsEnabled, digestEnabled} = useSettingsStore.getState();
+  if (!notificationsEnabled || !digestEnabled) return;
+
+  const now  = new Date();
+  const next = new Date();
+  next.setHours(digestHour, 0, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+
+  BackgroundFetch.scheduleTask({
+    taskId:          DIGEST_TASK_ID,
+    delay:           next.getTime() - now.getTime(),
+    periodic:        false,
+    enableHeadless:  true,
+    stopOnTerminate: false,
+  });
 }
 
 // ── Digest quotidien ──────────────────────────────────────────────────────────
@@ -275,8 +319,12 @@ export function buildDigestLines(
 
 /**
  * Envoie la notification de digest quotidien.
- * Guards : notificationsEnabled, digestEnabled, et lastDigestDate (anti-doublon).
- * Passer force=true pour bypasser lastDigestDate (bouton debug).
+ * Guards :
+ *  - notificationsEnabled + digestEnabled
+ *  - favoriteIds non vide
+ *  - contenu identique au dernier digest envoyé (pas de nouvelle info → silence)
+ *  - même jour calendaire que lastDigestDate (garde anti-doublon intra-journalier)
+ * Passer force=true pour bypasser ces gardes (bouton debug).
  */
 export async function sendDailyDigest(force = false): Promise<void> {
   await Promise.allSettled([
@@ -290,10 +338,6 @@ export async function sendDailyDigest(force = false): Promise<void> {
 
   const {favoriteIds} = useSectorsStore.getState();
   if (favoriteIds.length === 0) return;
-
-  const {lastDigestDate, setLastDigestDate} = useNotificationStore.getState();
-  const today = todayParis();
-  if (!force && lastDigestDate === today) return;
 
   const favSectors = sectors.filter(s => favoriteIds.includes(s.id));
   const forecasts  = new Map<string, WeatherForecast>();
@@ -309,13 +353,20 @@ export async function sendDailyDigest(force = false): Promise<void> {
   const lines = buildDigestLines(favSectors, forecasts);
   if (lines.length === 0) return;
 
+  const body = lines.join('\n');
+
+  const {lastDigestDate, lastDigestSummary, setLastDigestDate, setLastDigestSummary} =
+    useNotificationStore.getState();
+  const today = todayParis();
+
+  if (!force && body === lastDigestSummary) return;
+  if (!force && lastDigestDate === today) return;
+
   const dateStr = new Intl.DateTimeFormat('fr-FR', {
     day:   '2-digit',
     month: '2-digit',
     timeZone: 'Europe/Paris',
   }).format(new Date());
-
-  const body = lines.join('\n');
 
   await notifee.displayNotification({
     title: `Résumé grimpe · ${dateStr}`,
@@ -328,5 +379,6 @@ export async function sendDailyDigest(force = false): Promise<void> {
     ios: {sound: 'default'},
   });
 
+  setLastDigestSummary(body);
   setLastDigestDate(today);
 }
