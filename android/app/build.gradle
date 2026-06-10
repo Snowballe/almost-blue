@@ -82,8 +82,8 @@ android {
         applicationId "com.almostblue"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
     }
     // Lecture des propriétés de signature release depuis un fichier local non commité.
     // Créer android/keystore.properties (voir keystore.properties.example) avant
