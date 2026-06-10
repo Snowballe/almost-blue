@@ -11,13 +11,14 @@ import {MaterialIcons} from '@react-native-vector-icons/material-icons/static';
 import {useSettingsStore} from '../stores/useSettingsStore';
 import {isDegenerate} from '../utils/seasonLogic';
 import MonthDayPicker, {formatSeasonBound} from '../components/MonthDayPicker';
-import {sendTestNotification, checkAndNotify, sendDailyDigest} from '../services/notificationService';
+import {sendTestNotification, checkAndNotify, sendDailyDigest, scheduleNextDigest} from '../services/notificationService';
 import {useNotificationStore} from '../stores/useNotificationStore';
 import {useTheme, AppTheme, ACTIVE_OPACITY} from '../theme';
 import SectionHeader from '../components/settings/SectionHeader';
 import ToggleRow from '../components/settings/ToggleRow';
 import DateRow from '../components/settings/DateRow';
 import IntervalSelector from '../components/settings/IntervalSelector';
+import HourSelector from '../components/settings/HourSelector';
 
 // ── Factory de styles ─────────────────────────────────────────────────────────
 
@@ -102,6 +103,7 @@ export default function SettingsScreen() {
     checkIntervalMinutes,
     notificationsInSummer,
     digestEnabled,
+    digestHour,
     hibernationEnabled,
     colorScheme,
     offseasonStart,
@@ -110,6 +112,7 @@ export default function SettingsScreen() {
     setCheckIntervalMinutes,
     setNotificationsInSummer,
     setDigestEnabled,
+    setDigestHour,
     setHibernationEnabled,
     setColorScheme,
     setOffseasonStart,
@@ -143,10 +146,19 @@ export default function SettingsScreen() {
             />
             <ToggleRow
               label="Résumé quotidien"
-              description="Récap des secteurs favoris chaque matin à 10h."
+              description={`Récap des secteurs favoris chaque jour à ${String(digestHour).padStart(2, '0')}h.`}
               value={digestEnabled}
               onValueChange={setDigestEnabled}
             />
+            {digestEnabled && (
+              <HourSelector
+                value={digestHour}
+                onChange={h => {
+                  setDigestHour(h);
+                  scheduleNextDigest();
+                }}
+              />
+            )}
             <ToggleRow
               label="Alertes en été"
               description="Envoie des alertes météo même en dehors de la hors-saison."
