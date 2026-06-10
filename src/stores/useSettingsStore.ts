@@ -42,8 +42,10 @@ interface SettingsStore {
    * automatiquement au retour de la hors-saison (automne/hiver).
    */
   overrideHibernation: boolean;
-  /** Envoie un résumé quotidien des secteurs favoris à 10h. */
+  /** Envoie un résumé quotidien des secteurs favoris. */
   digestEnabled: boolean;
+  /** Heure d'envoi du digest (0–23). Défaut : 10. */
+  digestHour: number;
 
   setNotificationsEnabled: (value: boolean) => void;
   setCheckIntervalMinutes: (value: CheckInterval) => void;
@@ -55,6 +57,7 @@ interface SettingsStore {
   resetOffseasonDates: () => void;
   setOverrideHibernation: (value: boolean) => void;
   setDigestEnabled: (value: boolean) => void;
+  setDigestHour: (value: number) => void;
   resetAll: () => void;
 }
 
@@ -70,6 +73,7 @@ export const useSettingsStore = create<SettingsStore>()(
       offseasonEnd: OFFSEASON_END,
       overrideHibernation: false,
       digestEnabled: true,
+      digestHour: 10,
 
       setNotificationsEnabled: value => set({notificationsEnabled: value}),
       setCheckIntervalMinutes: value => set({checkIntervalMinutes: value}),
@@ -82,6 +86,7 @@ export const useSettingsStore = create<SettingsStore>()(
         set({offseasonStart: OFFSEASON_START, offseasonEnd: OFFSEASON_END}),
       setOverrideHibernation: value => set({overrideHibernation: value}),
       setDigestEnabled: value => set({digestEnabled: value}),
+      setDigestHour: value => set({digestHour: value}),
       resetAll: () => set({
         notificationsEnabled: true,
         checkIntervalMinutes: 180,
@@ -92,6 +97,7 @@ export const useSettingsStore = create<SettingsStore>()(
         offseasonEnd: OFFSEASON_END,
         overrideHibernation: false,
         digestEnabled: true,
+        digestHour: 10,
       }),
     }),
     {

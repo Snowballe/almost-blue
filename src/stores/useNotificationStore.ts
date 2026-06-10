@@ -14,6 +14,12 @@ interface NotificationStore {
   /** Date ISO du dernier digest envoyé ("2026-06-09"). Null si jamais envoyé. */
   lastDigestDate: string | null;
   setLastDigestDate: (date: string) => void;
+  /**
+   * Corps exact du dernier digest envoyé.
+   * Permet de ne pas renvoyer le digest si les fenêtres favorables n'ont pas changé.
+   */
+  lastDigestSummary: string | null;
+  setLastDigestSummary: (summary: string | null) => void;
 }
 
 export const useNotificationStore = create<NotificationStore>()(
@@ -24,6 +30,8 @@ export const useNotificationStore = create<NotificationStore>()(
       clearScores: () => set({lastScores: {}}),
       lastDigestDate: null,
       setLastDigestDate: date => set({lastDigestDate: date}),
+      lastDigestSummary: null,
+      setLastDigestSummary: summary => set({lastDigestSummary: summary}),
     }),
     {
       name: 'notification-store',
