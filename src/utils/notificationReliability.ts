@@ -11,8 +11,20 @@
  * On s'appuie sur les helpers natifs de notifee (déjà dépendance) pour lire
  * l'état et router l'utilisateur vers le bon écran système.
  */
-import {Platform} from 'react-native';
+import {NativeModules, Platform} from 'react-native';
 import notifee, {AndroidNotificationSetting} from '@notifee/react-native';
+
+/**
+ * Module natif maison (Android) : voir
+ * android/app/src/main/java/com/almostblue/BatteryOptimizationModule.kt.
+ * Absent sur iOS/web → on retombe sur l'ouverture des réglages.
+ */
+const {BatteryOptimization} = NativeModules as {
+  BatteryOptimization?: {
+    isIgnoring(): Promise<boolean>;
+    requestIgnore(): Promise<boolean>;
+  };
+};
 
 export interface ReliabilityStatus {
   /** true = optimisation batterie ACTIVE pour l'app (mauvais : tir différé en Doze). */
@@ -56,8 +68,17 @@ export function isReliabilityOk(s: ReliabilityStatus): boolean {
 // Wrappers minces autour de notifee pour garder les écrans appelants découplés
 // de l'API native et faciliter le mock en test.
 
-export function openBatteryOptimizationSettings(): Promise<void> {
-  return notifee.openBatteryOptimizationSettings();
+/**
+ * Demande l'exemption d'optimisation batterie.
+ * Si le module natif est dispo (Android), affiche la vraie popup système
+ * « Autoriser / Refuser » ; sinon ouvre la liste des réglages en repli.
+ */
+export async function requestBatteryOptimizationExemption(): Promise<void> {
+  if (Platform.OS === 'android' && BatteryOptimization) {
+    await BatteryOptimization.requestIgnore();
+    return;
+  }
+  await notifee.openBatteryOptimizationSettings();
 }
 
 export function openAlarmPermissionSettings(): Promise<void> {

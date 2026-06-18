@@ -7,8 +7,8 @@ import {
   getReliabilityStatus,
   isReliabilityOk,
   openAlarmPermissionSettings,
-  openBatteryOptimizationSettings,
   openPowerManagerSettings,
+  requestBatteryOptimizationExemption,
   ReliabilityStatus,
 } from '../../utils/notificationReliability';
 
@@ -141,7 +141,7 @@ export default function ReliabilitySection() {
         <FixRow
           title="Optimisation batterie"
           description="Empêche le résumé de partir à l’heure quand l’app est fermée."
-          onFix={openBatteryOptimizationSettings}
+          onFix={requestBatteryOptimizationExemption}
           styles={styles}
           warningColor={theme.colors.warning}
         />

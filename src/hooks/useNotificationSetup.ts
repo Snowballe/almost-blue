@@ -13,7 +13,7 @@ import {useSettingsStore} from '../stores/useSettingsStore';
 import {
   getReliabilityStatus,
   isReliabilityOk,
-  openBatteryOptimizationSettings,
+  requestBatteryOptimizationExemption,
 } from '../utils/notificationReliability';
 
 /**
@@ -65,7 +65,7 @@ export function useNotificationSetup(): void {
           'autorise Almost Blue à ignorer l’optimisation de batterie.',
         [
           {text: 'Plus tard', style: 'cancel'},
-          {text: 'Régler', onPress: () => openBatteryOptimizationSettings()},
+          {text: 'Autoriser', onPress: () => requestBatteryOptimizationExemption()},
         ],
       );
     }
