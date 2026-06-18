@@ -2,8 +2,6 @@
 // Le vrai package charge des modules TurboModule natifs (MLRNCameraModule, etc.)
 // qui n'existent pas dans l'environnement Jest. On expose des composants factices.
 
-import React from 'react';
-
 export const Map = 'MapLibreMap';
 export const Camera = 'MapLibreCamera';
 export const ViewAnnotation = 'MapLibreViewAnnotation';
