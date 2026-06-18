@@ -213,6 +213,9 @@ export function scheduleNextDigest(): void {
   const {digestHour, notificationsEnabled, digestEnabled} = useSettingsStore.getState();
   if (!notificationsEnabled || !digestEnabled) return;
 
+  // Heure locale du device. La dédup (todayParis) utilise Europe/Paris ; si le
+  // device est sur un autre fuseau, le tir et la dédup peuvent se décaler d'un
+  // jour. Cas attendu = device sur Paris → aucun impact.
   const now  = new Date();
   const next = new Date();
   next.setHours(digestHour, 0, 0, 0);
@@ -222,6 +225,10 @@ export function scheduleNextDigest(): void {
     taskId:          DIGEST_TASK_ID,
     delay:           next.getTime() - now.getTime(),
     periodic:        false,
+    // Force l'AlarmManager (setExactAndAllowWhileIdle) au lieu de JobScheduler/
+    // WorkManager opportuniste : seul moyen de tirer à l'heure pile, même en Doze.
+    // Nécessite USE_EXACT_ALARM / SCHEDULE_EXACT_ALARM dans le manifest.
+    forceAlarmManager: true,
     enableHeadless:  true,
     stopOnTerminate: false,
   });

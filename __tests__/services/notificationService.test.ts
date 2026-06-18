@@ -17,11 +17,13 @@ jest.mock('../../src/utils/weatherLogic', () => ({
 }));
 
 import notifee, {AndroidStyle} from '@notifee/react-native';
+import BackgroundFetch from 'react-native-background-fetch';
 import {
   checkAndNotify,
   formatNextWindow,
   buildDigestLines,
   sendDailyDigest,
+  scheduleNextDigest,
 } from '../../src/services/notificationService';
 import {useSectorsStore} from '../../src/stores/useSectorsStore';
 import {useSettingsStore} from '../../src/stores/useSettingsStore';
@@ -384,5 +386,33 @@ describe('sendDailyDigest — envoi nominal', () => {
     await sendDailyDigest();
     const call = mockDisplayNotification.mock.calls[0][0];
     expect(call.body).toContain('Falaise de Buoux');
+  });
+});
+
+// ─── scheduleNextDigest ───────────────────────────────────────────────────────
+
+describe('scheduleNextDigest', () => {
+  const mockScheduleTask = BackgroundFetch.scheduleTask as jest.Mock;
+
+  it('planifie la tâche digest en forçant l\'AlarmManager (tir à l\'heure pile)', () => {
+    scheduleNextDigest();
+    expect(mockScheduleTask).toHaveBeenCalledTimes(1);
+    const config = mockScheduleTask.mock.calls[0][0];
+    expect(config.taskId).toBe('daily-digest');
+    expect(config.forceAlarmManager).toBe(true);
+    expect(config.periodic).toBe(false);
+    expect(config.delay).toBeGreaterThan(0);
+  });
+
+  it('ne planifie rien si notificationsEnabled=false', () => {
+    useSettingsStore.setState({notificationsEnabled: false});
+    scheduleNextDigest();
+    expect(mockScheduleTask).not.toHaveBeenCalled();
+  });
+
+  it('ne planifie rien si digestEnabled=false', () => {
+    useSettingsStore.setState({digestEnabled: false});
+    scheduleNextDigest();
+    expect(mockScheduleTask).not.toHaveBeenCalled();
   });
 });

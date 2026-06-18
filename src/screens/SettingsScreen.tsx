@@ -19,6 +19,7 @@ import ToggleRow from '../components/settings/ToggleRow';
 import DateRow from '../components/settings/DateRow';
 import IntervalSelector from '../components/settings/IntervalSelector';
 import HourSelector from '../components/settings/HourSelector';
+import ReliabilitySection from '../components/settings/ReliabilitySection';
 
 // ── Factory de styles ─────────────────────────────────────────────────────────
 
@@ -151,13 +152,16 @@ export default function SettingsScreen() {
               onValueChange={setDigestEnabled}
             />
             {digestEnabled && (
-              <HourSelector
-                value={digestHour}
-                onChange={h => {
-                  setDigestHour(h);
-                  scheduleNextDigest();
-                }}
-              />
+              <>
+                <HourSelector
+                  value={digestHour}
+                  onChange={h => {
+                    setDigestHour(h);
+                    scheduleNextDigest();
+                  }}
+                />
+                <ReliabilitySection />
+              </>
             )}
             <ToggleRow
               label="Alertes en été"

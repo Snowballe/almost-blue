@@ -1,4 +1,5 @@
 import {useEffect, useRef} from 'react';
+import {Alert} from 'react-native';
 import BackgroundFetch from 'react-native-background-fetch';
 import notifee, {AuthorizationStatus} from '@notifee/react-native';
 import {
@@ -9,6 +10,11 @@ import {
   DIGEST_TASK_ID,
 } from '../services/notificationService';
 import {useSettingsStore} from '../stores/useSettingsStore';
+import {
+  getReliabilityStatus,
+  isReliabilityOk,
+  openBatteryOptimizationSettings,
+} from '../utils/notificationReliability';
 
 /**
  * Hook à appeler une seule fois dans App.tsx.
@@ -41,6 +47,27 @@ export function useNotificationSetup(): void {
       if (settings.authorizationStatus === AuthorizationStatus.DENIED) {
         return;
       }
+
+      // Invite unique : sans exemption batterie / alarmes exactes, le digest
+      // ne part pas à l'heure pile (Doze diffère la tâche). On ne la montre
+      // qu'une fois ; la section « Fiabilité » des réglages reste accessible.
+      const {reliabilityPromptDone, setReliabilityPromptDone} =
+        useSettingsStore.getState();
+      if (reliabilityPromptDone) return;
+
+      const status = await getReliabilityStatus();
+      if (isReliabilityOk(status)) return;
+
+      setReliabilityPromptDone(true);
+      Alert.alert(
+        'Notifications à l’heure',
+        'Pour recevoir le résumé quotidien à l’heure pile même app fermée, ' +
+          'autorise Almost Blue à ignorer l’optimisation de batterie.',
+        [
+          {text: 'Plus tard', style: 'cancel'},
+          {text: 'Régler', onPress: () => openBatteryOptimizationSettings()},
+        ],
+      );
     }
     init();
   }, []);
@@ -69,6 +96,14 @@ export function useNotificationSetup(): void {
           }
         } else {
           await checkAndNotify();
+          // Ré-arme le digest s'il a été perdu (reboot, tir manqué, chaîne
+          // cassée) : le fetch périodique redémarre au boot (startOnBoot) et
+          // tourne régulièrement, ce qui rend la planification auto-réparante.
+          // scheduleTask est idempotent par taskId → sans danger.
+          const s = useSettingsStore.getState();
+          if (s.notificationsEnabled && s.digestEnabled) {
+            scheduleNextDigest();
+          }
         }
         BackgroundFetch.finish(taskId);
       },
