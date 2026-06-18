@@ -5,6 +5,13 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Démarrage au boot pour relancer la tâche background-fetch -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Alarmes exactes pour le digest quotidien à l'heure pile (forceAlarmManager).
+         USE_EXACT_ALARM : auto-accordée sur Android 13+ (target SDK 36).
+         SCHEDULE_EXACT_ALARM : accord runtime, chemin Android 12. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Exemption d'optimisation batterie (Doze) : sans elle la tâche est différée/abandonnée. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
       android:name=".MainApplication"

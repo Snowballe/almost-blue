@@ -12,6 +12,7 @@ beforeEach(() => {
     offseasonEnd:          OFFSEASON_END,
     overrideHibernation:   false,
     digestEnabled:         true,
+    digestHour:            10,
   });
 });
 
@@ -49,6 +50,10 @@ describe('état initial', () => {
 
   it('digest activé par défaut', () => {
     expect(useSettingsStore.getState().digestEnabled).toBe(true);
+  });
+
+  it('heure du digest à 10 par défaut', () => {
+    expect(useSettingsStore.getState().digestHour).toBe(10);
   });
 });
 
@@ -95,6 +100,11 @@ describe('setters', () => {
     useSettingsStore.getState().setDigestEnabled(false);
     expect(useSettingsStore.getState().digestEnabled).toBe(false);
   });
+
+  it('setDigestHour met à jour digestHour', () => {
+    useSettingsStore.getState().setDigestHour(20);
+    expect(useSettingsStore.getState().digestHour).toBe(20);
+  });
 });
 
 // ─── resetAll ────────────────────────────────────────────────────────────────
@@ -104,6 +114,12 @@ describe('resetAll', () => {
     useSettingsStore.getState().setDigestEnabled(false);
     useSettingsStore.getState().resetAll();
     expect(useSettingsStore.getState().digestEnabled).toBe(true);
+  });
+
+  it('remet digestHour à 10', () => {
+    useSettingsStore.getState().setDigestHour(20);
+    useSettingsStore.getState().resetAll();
+    expect(useSettingsStore.getState().digestHour).toBe(10);
   });
 
   it('remet notificationsEnabled à true', () => {

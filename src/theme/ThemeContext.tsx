@@ -1,4 +1,4 @@
-import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
+import React, {createContext, useContext, useEffect, useState} from 'react';
 import {ActivityIndicator, StyleSheet, View} from 'react-native';
 import {darkColors, lightColors, Colors} from './colors';
 import {typography} from './typography';

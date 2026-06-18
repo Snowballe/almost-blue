@@ -23,6 +23,12 @@ export enum AndroidStyle {
   IMAGE   = 2,
 }
 
+export enum AndroidNotificationSetting {
+  NOT_SUPPORTED = -1,
+  DISABLED      = 0,
+  ENABLED       = 1,
+}
+
 const notifee = {
   requestPermission: jest.fn(() =>
     Promise.resolve({authorizationStatus: AuthorizationStatus.AUTHORIZED}),
@@ -34,6 +40,15 @@ const notifee = {
   getInitialNotification: jest.fn(() => Promise.resolve(null)),
   onForegroundEvent: jest.fn(() => () => {}),
   onBackgroundEvent: jest.fn(() => () => {}),
+  // Fiabilité de livraison (Android) — voir src/utils/notificationReliability.ts
+  getNotificationSettings: jest.fn(() =>
+    Promise.resolve({android: {alarm: AndroidNotificationSetting.ENABLED}}),
+  ),
+  isBatteryOptimizationEnabled: jest.fn(() => Promise.resolve(false)),
+  getPowerManagerInfo: jest.fn(() => Promise.resolve({activity: null})),
+  openBatteryOptimizationSettings: jest.fn(() => Promise.resolve()),
+  openAlarmPermissionSettings: jest.fn(() => Promise.resolve()),
+  openPowerManagerSettings: jest.fn(() => Promise.resolve()),
 };
 
 export default notifee;
