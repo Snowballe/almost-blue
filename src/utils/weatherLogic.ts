@@ -9,7 +9,7 @@ import {Orientation} from '../types/sector';
 
 // ─── Seuils ──────────────────────────────────────────────────────────────────
 
-const MIN_TEMP        = 5;   // °C minimal (avant correctif d'orientation)
+const MIN_TEMP        = 2;   // °C minimal (avant correctif d'orientation) — froid sec ≈ bonne friction, on ne mord que près de 0°C
 const MIN_WIND_DRYING = 15;  // km/h — vent de face pour séchage actif
 const MAX_PRECIP      = 0.5; // mm/h — précipitation active
 
@@ -30,12 +30,15 @@ export const SCORE_WEIGHTS = {
 
   // Probabilité de pluie
   PRECIP_PROB_HIGH:           -3.0,
-  PRECIP_PROB_HIGH_THRESHOLD:  80,
+  PRECIP_PROB_HIGH_THRESHOLD:  70,
   PRECIP_PROB_WARN:           -2.0,
-  PRECIP_PROB_WARN_THRESHOLD:  60,
+  PRECIP_PROB_WARN_THRESHOLD:  40,
 
-  // Pluie récente — coefficient par mm cumulé dans la fenêtre de lookback
-  RECENT_RAIN_PER_MM: -1.0,
+  // Pluie récente — coefficient par mm cumulé dans la fenêtre de lookback.
+  // Dépend du type de roche : le granite/grès (fast) sèche vite → pénalité douce ;
+  // le calcaire/conglomérat (slow), souvent friable, reste humide → pénalité sévère.
+  RECENT_RAIN_PER_MM_FAST: -0.5,
+  RECENT_RAIN_PER_MM_SLOW: -1.5,
 
   // Multiplicateur d'exposition au vent sur la pluie récente
   // 0 = vent de face fort → séchage actif → pas de malus pluie
@@ -44,8 +47,9 @@ export const SCORE_WEIGHTS = {
   EXPOSURE_EXPOSED_WEAK:    0.50,
   EXPOSURE_EXPOSED_STRONG:  0.00,
 
-  // Température effective (par degré en dessous du seuil)
-  TEMP_COLD_PER_DEG: 1.0,
+  // Température effective (par degré en dessous du seuil) — pénalité résiduelle
+  // faible : le froid sec n'est pas un problème pour la grimpe (meilleure friction).
+  TEMP_COLD_PER_DEG: 0.5,
 
   // Bonus vent séchant (face exposée + vent >= MIN_WIND_DRYING)
   WIND_DRYING_BONUS: 1.0,
@@ -164,8 +168,12 @@ function scoreSlotNumeric(
     score += SCORE_WEIGHTS.WIND_STRONG_PENALTY;
   }
 
-  // 5. Pluie récente × exposition au vent
+  // 5. Pluie récente × exposition au vent — fenêtre et sévérité selon le type de roche
   const recentRainMm = rockType === 'fast' ? slot.recentRainMm6h : slot.recentRainMm24h;
+  const recentRainCoef =
+    rockType === 'fast'
+      ? SCORE_WEIGHTS.RECENT_RAIN_PER_MM_FAST
+      : SCORE_WEIGHTS.RECENT_RAIN_PER_MM_SLOW;
   if (recentRainMm > 0) {
     const exposure = getWindExposure(slot.windDirection, orientation);
     const exposureMultiplier =
@@ -174,7 +182,7 @@ function scoreSlotNumeric(
       slot.windspeed >= MIN_WIND_DRYING                            ? SCORE_WEIGHTS.EXPOSURE_EXPOSED_STRONG :
                                                                      SCORE_WEIGHTS.EXPOSURE_EXPOSED_WEAK;
 
-    score += SCORE_WEIGHTS.RECENT_RAIN_PER_MM * recentRainMm * exposureMultiplier;
+    score += recentRainCoef * recentRainMm * exposureMultiplier;
 
     // Bonus vent séchant : vent de face fort annule déjà le malus pluie via
     // EXPOSURE_EXPOSED_STRONG = 0. On ajoute en plus un bonus si l'expo est favorable.
@@ -224,9 +232,9 @@ function scoreSlotBase(slot: WeatherSlot): number {
     score -= (MIN_TEMP - slot.temperature) * SCORE_WEIGHTS.TEMP_COLD_PER_DEG;
   }
 
-  // Pluie récente : hypothèse abritée (pénalité max) pour rester conservateur
+  // Pluie récente : hypothèse conservatrice (séchage lent + abrité, pénalité max)
   if (slot.recentRainMm6h > 0) {
-    score += SCORE_WEIGHTS.RECENT_RAIN_PER_MM * slot.recentRainMm6h * SCORE_WEIGHTS.EXPOSURE_SHELTERED;
+    score += SCORE_WEIGHTS.RECENT_RAIN_PER_MM_SLOW * slot.recentRainMm6h * SCORE_WEIGHTS.EXPOSURE_SHELTERED;
   }
 
   return clamp(score);
