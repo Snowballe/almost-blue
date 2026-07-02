@@ -109,22 +109,35 @@ describe('buildForecast', () => {
     expect(forecast.slots[0].score).toBe('bad');
   });
 
-  it('probabilité de pluie ≥ 80% → score bad', () => {
+  it('probabilité de pluie ≥ 70% → score bad', () => {
     const precipitation_probability = new Array(72).fill(0);
-    precipitation_probability[0] = 85;
+    precipitation_probability[0] = 75;
     const forecast = buildForecast(makeHourly({precipitation_probability}));
     expect(forecast.slots[0].score).toBe('bad');
   });
 
-  it('probabilité de pluie entre 60% et 79% → score ok', () => {
+  it('probabilité de pluie entre 40% et 69% → score ok', () => {
     const precipitation_probability = new Array(72).fill(0);
-    precipitation_probability[0] = 65;
+    precipitation_probability[0] = 45;
     const forecast = buildForecast(makeHourly({precipitation_probability}));
     expect(forecast.slots[0].score).toBe('ok');
   });
 
-  it('température en dessous de 5°C → score ok', () => {
+  it('probabilité de pluie < 40% → score good', () => {
+    const precipitation_probability = new Array(72).fill(0);
+    precipitation_probability[0] = 35;
+    const forecast = buildForecast(makeHourly({precipitation_probability}));
+    expect(forecast.slots[0].score).toBe('good');
+  });
+
+  it('froid sec modéré (3°C) → score good (le froid ne pénalise plus)', () => {
     const temperature_2m = new Array(72).fill(3);
+    const forecast = buildForecast(makeHourly({temperature_2m}));
+    expect(forecast.slots[0].score).toBe('good');
+  });
+
+  it('température proche de 0°C → score ok (pénalité froid résiduelle)', () => {
+    const temperature_2m = new Array(72).fill(0);
     const forecast = buildForecast(makeHourly({temperature_2m}));
     expect(forecast.slots[0].score).toBe('ok');
   });
@@ -341,32 +354,41 @@ describe('getSubSectorSummary', () => {
 
   // ── Correctifs d'orientation (température) ──────────────────────────────────
 
-  it('face N (adjust +4°C) : 7°C < seuil effectif (9°C) → ok', () => {
-    const slots = [makeSlot('2026-06-16', 14, {temperature: 7})];
+  // Seuil de base MIN_TEMP = 2°C, pénalité douce (0.5/°C) : le froid sec ne mord
+  // que près de 0°C. Le correctif d'orientation relève/abaisse ce seuil.
+
+  it('face N (adjust +4°C) : 4°C < seuil effectif (6°C) → ok', () => {
+    const slots = [makeSlot('2026-06-16', 14, {temperature: 4})];
     const summary = getSubSectorSummary(makeForecast(slots), 'N');
     expect(summary.score).toBe('ok');
   });
 
-  it('face S (adjust −2°C) : 7°C ≥ seuil effectif (3°C) → good', () => {
+  it('face N (adjust +4°C) : 7°C ≥ seuil effectif (6°C) → good', () => {
+    const slots = [makeSlot('2026-06-16', 14, {temperature: 7})];
+    const summary = getSubSectorSummary(makeForecast(slots), 'N');
+    expect(summary.score).toBe('good');
+  });
+
+  it('face S (adjust −2°C) : 7°C ≥ seuil effectif (0°C) → good', () => {
     const slots = [makeSlot('2026-06-16', 14, {temperature: 7})];
     const summary = getSubSectorSummary(makeForecast(slots), 'S');
     expect(summary.score).toBe('good');
   });
 
-  it('face NE (adjust +3°C) : 7°C < 8°C → ok', () => {
-    const slots = [makeSlot('2026-06-16', 14, {temperature: 7})];
+  it('face NE (adjust +3°C) : 3°C < seuil effectif (5°C) → ok', () => {
+    const slots = [makeSlot('2026-06-16', 14, {temperature: 3})];
     const summary = getSubSectorSummary(makeForecast(slots), 'NE');
     expect(summary.score).toBe('ok');
   });
 
-  it("face E (adjust 0°C) : 6°C > 5°C → good si pas d'autre raison", () => {
+  it('face E (adjust 0°C) : 6°C > seuil (2°C) → good', () => {
     const slots = [makeSlot('2026-06-16', 14, {temperature: 6})];
     const summary = getSubSectorSummary(makeForecast(slots), 'E');
     expect(summary.score).toBe('good');
   });
 
-  it('face E : 4°C < seuil (5°C) → ok', () => {
-    const slots = [makeSlot('2026-06-16', 14, {temperature: 4})];
+  it('face E : 0°C < seuil (2°C) → ok', () => {
+    const slots = [makeSlot('2026-06-16', 14, {temperature: 0})];
     const summary = getSubSectorSummary(makeForecast(slots), 'E');
     expect(summary.score).toBe('ok');
   });
@@ -387,7 +409,8 @@ describe('getSubSectorSummary', () => {
     expect(summary.score).toBe('good');
   });
 
-  it('pluie récente + vent de face faible → séchage insuffisant → ok', () => {
+  it('pluie récente légère + roche rapide → sèche assez → good', () => {
+    // Coef fast doux (−0.5/mm) : 2 mm avec un léger vent de face → reste good.
     const slots = [
       makeSlot('2026-06-16', 14, {
         recentRainMm6h: 2.0,
@@ -396,7 +419,20 @@ describe('getSubSectorSummary', () => {
       }),
     ];
     const summary = getSubSectorSummary(makeForecast(slots), 'S', 'fast');
-    expect(summary.score).toBe('ok');
+    expect(summary.score).toBe('good');
+  });
+
+  it('pluie récente + roche lente (slow) → prudent → bad', () => {
+    // Contraste avec le cas fast : coef slow sévère (−1.5/mm) sur la fenêtre 24h.
+    const slots = [
+      makeSlot('2026-06-16', 14, {
+        recentRainMm24h: 3.0,
+        windDirection: 0,
+        windspeed: 0,
+      }),
+    ];
+    const summary = getSubSectorSummary(makeForecast(slots), 'S', 'slow');
+    expect(summary.score).toBe('bad');
   });
 
   it('pluie récente + vent de dos → séchage très lent → ok', () => {
