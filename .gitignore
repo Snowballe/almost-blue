@@ -19,6 +19,9 @@ android/.gradle/
 android/local.properties
 android/keystore.properties
 android/*.keystore
+# Keystore release (secret) — ignoré partout, sauf le debug.keystore (public, versionné)
+android/app/*.keystore
+!android/app/debug.keystore
 *.apk
 *.aab
 
