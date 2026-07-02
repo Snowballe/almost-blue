@@ -21,7 +21,7 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
       - name: ESLint
-        run: npx eslint .
+        run: npx eslint . --max-warnings 0
       - name: Jest
         run: npx jest --ci
 
