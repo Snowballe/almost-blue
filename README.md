@@ -19,14 +19,16 @@ Prérequis : Node ≥ 20, Java / Android SDK, émulateur ou device en mode débo
 
 ---
 
-## Fonctionnalités actuelles (v0)
+## Fonctionnalités actuelles (v1.2)
 
 - **Liste de secteurs** avec favoris persistés (Zustand + AsyncStorage)
 - **Carte OSM** (MapLibre, sans clé) — pins colorés par score météo
-- **Détail secteur** — score météo 48h par sous-secteur + prochain créneau favorable
+- **Détail secteur** — score météo 72h par sous-secteur (orientation + type de roche) + prochain créneau favorable
 - **Notifications locales** — alerte dès qu'un favori passe de `bad/ok` → `good`
+- **Digest quotidien** — résumé des favoris envoyé à une heure configurable
+- **Fiabilité des notifications** — exemption d'optimisation batterie + alarmes exactes pour un tir à l'heure pile même app fermée (module natif Android)
 - **Hibernation estivale** — l'app se met en veille d'avril à octobre (configurable)
-- **Écran Réglages** — fréquence de vérification, bornes de saison, thème dark/light
+- **Écran Réglages** — fréquence de vérification, bornes de saison, heure du digest, thème dark/light
 
 ---
 
@@ -41,13 +43,13 @@ Les secteurs sont saisis à la main dans `src/data/sectors.ts`. Il n'y a pas d'A
   latitude: 44.123,
   longitude: 5.456,
   subSectors: [
-    {id: 'mon-secteur-dalle', name: 'Dalle', orientation: 'S'},
-    {id: 'mon-secteur-devers', name: 'Dévers', orientation: 'SW'},
+    {id: 'mon-secteur-dalle', name: 'Dalle', orientation: 'S', rockType: 'fast'},
+    {id: 'mon-secteur-devers', name: 'Dévers', orientation: 'SW', rockType: 'slow'},
   ],
 },
 ```
 
-Un `SubSector` hérite des coordonnées GPS du `Sector` parent (un seul appel météo par secteur). L'orientation appartient au sous-secteur — même falaise, mêmes coordonnées, expositions différentes. Pour un site avec des parois très éloignées, créer deux `Sector` distincts.
+Un `SubSector` hérite des coordonnées GPS du `Sector` parent (un seul appel météo par secteur). L'orientation appartient au sous-secteur — même falaise, mêmes coordonnées, expositions différentes. Le `rockType` (`fast` = granite/grès, sèche en quelques heures ; `slow` = calcaire/conglomérat, peut suinter 24h+) est requis et pilote la fenêtre de pluie récente prise en compte. Pour un site avec des parois très éloignées, créer deux `Sector` distincts.
 
 ---
 
@@ -61,7 +63,7 @@ src/
 │   └── notificationService.ts Détection transition → alerte locale
 ├── stores/                    Zustand (favoris, réglages, scores connus)
 ├── utils/
-│   ├── weatherLogic.ts        Algorithme de score good/ok/bad
+│   ├── weatherLogic.ts        Score météo pondéré (orientation + roche) → good/ok/bad
 │   └── seasonLogic.ts         Logique hors-saison / hibernation
 ├── screens/                   5 écrans (List, Map, Detail, Settings, Hibernation)
 └── theme/                     Tokens couleur, typographie, espacement
@@ -115,6 +117,5 @@ Copier `.env.example` → `.env`. Ne jamais committer `.env`.
 
 ## Roadmap
 
-- **v0** *(actuel)* : secteurs hardcodés, liste + carte + favoris, météo par sous-secteur, notifications locales, Android.
-- **v1** : intégration Oblyk (recherche de secteurs), personnalisation seuils météo, iOS.
-- **v2** : géolocalisation opt-in (secteurs proches), analytics opt-in.
+- **v0 → v1.2** *(livré)* : secteurs hardcodés, liste + carte + favoris, météo pondérée par sous-secteur (orientation + roche), notifications locales, digest quotidien à heure configurable, fiabilité background (exemption batterie + alarmes exactes), hibernation estivale. Android.
+- **À venir** : intégration Oblyk (recherche de secteurs), personnalisation fine des seuils météo, finalisation iOS, géolocalisation opt-in (secteurs proches).

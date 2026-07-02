@@ -16,6 +16,8 @@ Application React Native qui alerte les grimpeurs outdoor quand une fenêtre mé
 | Animations | react-native-reanimated (dep transitive) |
 | Gestes | react-native-gesture-handler (dep transitive) |
 | Météo | Open-Meteo (gratuit, sans clé) |
+| Notifications | @notifee/react-native (canal + digest) |
+| Tâches fond | react-native-background-fetch (headless + AlarmManager exact) |
 
 ## Palette — dark crépusculaire (référence : Chet Baker, "Almost Blue")
 
@@ -39,8 +41,12 @@ Les topos sont saisis à la main directement dans le code.
 
 ```typescript
 Sector { id, name, latitude, longitude, altitude?, notes?, subSectors[] }
-SubSector { id, name, orientation, notes? }
+SubSector { id, name, orientation, rockType: 'fast' | 'slow', notes? }
 ```
+
+`rockType` est **requis** : `fast` (granite/grès, sèche en quelques heures) vs
+`slow` (calcaire/conglomérat, peut suinter 24h+). Il pilote la fenêtre de pluie
+récente prise en compte (6h vs 24h).
 
 - Un sous-secteur hérite du GPS du secteur parent (un seul appel météo par secteur).
 - L'orientation appartient au sous-secteur (même falaise = même orientation).
@@ -72,14 +78,25 @@ cd android && ./gradlew assembleDebug  # APK debug
 Fichier principal : `src/utils/weatherLogic.ts`
 
 - 1 appel Open-Meteo par secteur (lat/lng partagé entre sous-secteurs)
-- Cache en mémoire 1h (`src/services/openMeteo.ts` → `getCachedForecast`)
-- Score par créneau : `good` / `ok` / `bad`
-- `getSubSectorSummary(forecast, orientation)` → meilleur score sur 48h en tenant compte de l'orientation
+- Cache en mémoire 1h + déduplication des requêtes en vol (`src/services/openMeteo.ts` → `getCachedForecast`)
+- **Modèle de score additif pondéré** : chaque créneau part de `BASE`, puis reçoit
+  bonus/malus (précipitations, codes WMO, probabilité de pluie, température, vent,
+  pluie récente × exposition). Tous les poids sont dans la constante `SCORE_WEIGHTS`
+  — recalibrer **là**, jamais en dur dans la logique.
+- Score numérique [0,10] → `WeatherScore` via seuils : `>= THRESHOLD_GOOD` (6.0) → `good`,
+  `>= THRESHOLD_OK` (4.0) → `ok`, sinon `bad`.
+- `getSubSectorSummary(forecast, orientation, rockType, horizonHours = 72)` →
+  meilleur score sur l'horizon (créneaux de jour 7h–20h) + première fenêtre `good`.
+- La pluie récente utilise une fenêtre de 6h (`fast`) ou 24h (`slow`) selon le `rockType`.
 
-**Modificateur de température par orientation :**
-- N +4°C, NE +3°C, NW +2°C (plus froid, sèche lentement)
-- S -2°C, SW -2°C, SE -1°C (plus ensoleillé, sèche vite)
+**Correctif d'orientation — appliqué au *seuil* `MIN_TEMP`, pas à la température lue :**
+une face N relève le seuil (plus exigeant : sèche lentement), une face S l'abaisse.
+- N +4°C, NE +3°C, NW +2°C
+- S -2°C, SW -2°C, SE -1°C
 - E/W ±0°C
+
+**Exposition au vent** (`exposed`/`side`/`sheltered` selon l'écart paroi↔vent) :
+une face exposée + vent ≥ 15 km/h annule le malus de pluie récente (séchage actif).
 
 ## Navigation
 
@@ -93,9 +110,13 @@ RootStack
 
 ## Roadmap
 
-- **v0** : secteurs hardcodés, liste + carte (favoris), météo par sous-secteur, Android.
-- **v1** : Oblyk API (recherche secteurs), personnalisation seuils météo, iOS.
-- **v2** : géoloc "secteurs proches", notifications locales, analytics opt-in.
+- **v0 → v1.2** *(livré)* : secteurs hardcodés, liste + carte (favoris), météo pondérée
+  par sous-secteur (orientation + `rockType`), notifications locales, digest quotidien
+  à heure configurable, fiabilité background (exemption batterie + alarmes exactes via
+  module natif Android), hibernation estivale. Android.
+- **À venir** : Oblyk API (recherche secteurs), personnalisation fine des seuils météo,
+  finalisation iOS (scaffold présent, couche fiabilité Android-only), géoloc "secteurs
+  proches", analytics opt-in.
 
 ## Conventions
 
