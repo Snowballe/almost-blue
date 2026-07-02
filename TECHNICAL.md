@@ -223,7 +223,7 @@ __tests__/
     └── weatherLogic.test.ts           buildForecast, getSubSectorSummary
 ```
 
-10 suites, **213 tests** au vert. Commande : `npm test`
+10 suites, **217 tests** au vert. Commande : `npm test`
 
 ---
 
@@ -234,3 +234,52 @@ __tests__/
 | `OPEN_METEO_API_BASE_URL` | `https://api.open-meteo.com` | Base URL de l'API météo |
 
 Copier `.env.example` → `.env`. Ne jamais committer `.env`.
+
+---
+
+## Intégration continue (CI)
+
+GitHub Actions — `.github/workflows/ci.yml`, déclenchée sur push `main` et pull requests :
+
+- **checks** : `npm ci` → `tsc --noEmit` → `eslint` → `jest`.
+- **android** : build `assembleDebug` (signé avec le `debug.keystore` versionné, sans secret).
+
+Aucun secret n'est requis : la CI ne fait pas de build *release* signé.
+
+---
+
+## Signature & build release
+
+Le build **release** est signé avec un keystore dédié, conservé **hors dépôt** :
+
+| Fichier | Rôle | Suivi par git ? |
+|---|---|---|
+| `android/app/almost-blue-release.keystore` | Clé de signature (ECDSA secp256r1) | ❌ ignoré |
+| `android/keystore.properties` | Chemin du keystore + mots de passe | ❌ ignoré |
+| `android/app/debug.keystore` | Clé debug publique (partagée) | ✅ versionné |
+
+`android/app/build.gradle` lit `keystore.properties` s'il existe, sinon retombe sur le
+keystore debug (dev uniquement).
+
+**Régénérer le keystore** (pour référence — déjà généré) :
+
+```bash
+keytool -genkeypair -v \
+  -keystore android/app/almost-blue-release.keystore \
+  -alias almost-blue -keyalg EC -groupname secp256r1 -validity 10000 \
+  -dname "CN=Almost Blue, OU=Dev, O=Almost Blue, L=Brest, ST=Bretagne, C=FR"
+# puis : cp android/keystore.properties.example android/keystore.properties
+# et renseigner storePassword / keyPassword.
+```
+
+**Construire un APK signé :**
+
+```bash
+cd android && ./gradlew assembleRelease
+# → android/app/build/outputs/apk/release/app-release.apk
+```
+
+> ⚠️ **SAUVEGARDE CRITIQUE.** Le keystore et son mot de passe ne sont **que** sur la machine
+> de dev (gitignorés). Sauvegarde-les (password manager + copie hors ligne du `.keystore`).
+> Une fois l'app publiée, **toute mise à jour doit être signée avec le même keystore** — le
+> perdre = ne plus pouvoir mettre à jour l'app. Tant que rien n'est publié, il reste régénérable.
