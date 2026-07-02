@@ -87,7 +87,9 @@ Fichier principal : `src/utils/weatherLogic.ts`
   `>= THRESHOLD_OK` (4.0) → `ok`, sinon `bad`.
 - `getSubSectorSummary(forecast, orientation, rockType, horizonHours = 72)` →
   meilleur score sur l'horizon (créneaux de jour 7h–20h) + première fenêtre `good`.
-- La pluie récente utilise une fenêtre de 6h (`fast`) ou 24h (`slow`) selon le `rockType`.
+- La pluie récente utilise une fenêtre de 6h (`fast`) ou 24h (`slow`) selon le `rockType`,
+  et une **sévérité** différente : `fast` (granite) sèche vite → pénalité douce ; `slow`
+  (calcaire friable) reste humide → pénalité sévère (prudence).
 
 **Correctif d'orientation — appliqué au *seuil* `MIN_TEMP`, pas à la température lue :**
 une face N relève le seuil (plus exigeant : sèche lentement), une face S l'abaisse.

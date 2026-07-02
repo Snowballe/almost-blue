@@ -120,11 +120,15 @@ Facteurs appliqués :
 
 1. **Précipitations actives** (> 0.5 mm/h) → malus proportionnel (`PRECIP_ACTIVE_PER_MM`).
    Sinon, un malus/bonus **WMO** mutuellement exclusif (orage / neige / pluie forte / ciel clair).
-2. **Probabilité de pluie** ≥ 80% → malus fort ; ≥ 60% → malus modéré.
-3. **Température effective** sous le seuil `MIN_TEMP` (+ correctif d'orientation) → malus par degré.
+2. **Probabilité de pluie** ≥ 70% → malus fort ; ≥ 40% → malus modéré.
+3. **Température effective** sous le seuil `MIN_TEMP` (= 2°C, + correctif d'orientation) →
+   malus par degré, **faible** (0.5/°C) : le froid sec ne gêne pas la grimpe (bonne friction),
+   on ne pénalise que près de 0°C.
 4. **Vent fort** (> 60 km/h) → malus (inconfort / sécurité).
 5. **Pluie récente** × **exposition au vent** : cumul de pluie sur 6h (`fast`) ou 24h
-   (`slow`) pondéré par l'exposition de la paroi. Vent de face fort → séchage actif → malus annulé.
+   (`slow`) pondéré par l'exposition de la paroi. La **sévérité dépend de la roche** :
+   `fast` (granite, sèche vite) = pénalité douce ; `slow` (calcaire friable) = pénalité
+   sévère. Vent de face fort → séchage actif → malus annulé.
 
 Le score numérique est ensuite dérivé en `WeatherScore` :
 `>= THRESHOLD_GOOD` (6.0) → `good`, `>= THRESHOLD_OK` (4.0) → `ok`, sinon `bad`.
@@ -138,8 +142,9 @@ N +4°C, NE +3°C, NW +2°C, E/W ±0, SE −1°C, S/SW −2°C — une face N es
 **Exposition vent :** `exposed` (±60°) / `side` (60–120°) / `sheltered` (>120°). Une face
 exposée + vent ≥ 15 km/h annule le malus de pluie récente (séchage actif).
 
-> ⚠️ Calibration non validée terrain : `BASE = 6` == `THRESHOLD_GOOD = 6.0`, donc un
-> créneau neutre bascule d'emblée en `good` (modèle optimiste par construction).
+> Choix de calibration assumé : `BASE = 6` == `THRESHOLD_GOOD = 6.0`, donc un créneau
+> neutre (sec, couvert) est `good` d'emblée — le modèle est volontairement optimiste
+> (« good = grimpable »), la dégradation vient des malus (pluie, proba, roche humide).
 
 ---
 
