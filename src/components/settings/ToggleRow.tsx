@@ -1,6 +1,6 @@
 import React from 'react';
 import {StyleSheet, Switch, Text, View} from 'react-native';
-import {useTheme} from '../../theme';
+import {useTheme, AppTheme} from '../../theme';
 
 interface Props {
   label: string;
@@ -19,51 +19,23 @@ export default function ToggleRow({
   disabled = false,
   disabledNote,
 }: Props) {
-  const {colors, typography, spacing} = useTheme();
+  const theme = useTheme();
+  const {colors} = theme;
+  const styles = React.useMemo(() => makeStyles(theme), [theme]);
 
   return (
-    <View
-      style={[
-        styles.row,
-        {
-          backgroundColor: colors.surface,
-          paddingHorizontal: spacing.lg,
-          paddingVertical: spacing.md,
-          borderBottomColor: colors.border,
-          gap: spacing.md,
-        },
-        disabled && styles.rowDisabled,
-      ]}>
+    <View style={[styles.row, disabled && styles.rowDisabled]}>
       <View style={styles.rowText}>
         <Text
-          style={{
-            fontSize: typography.size.md,
-            color: disabled ? colors.textMuted : colors.textPrimary,
-            fontWeight: typography.weight.medium,
-          }}>
+          style={[
+            styles.label,
+            {color: disabled ? colors.textMuted : colors.textPrimary},
+          ]}>
           {label}
         </Text>
-        {description ? (
-          <Text
-            style={{
-              fontSize: typography.size.sm,
-              color: colors.textMuted,
-              marginTop: 2,
-              lineHeight: 18,
-            }}>
-            {description}
-          </Text>
-        ) : null}
+        {description ? <Text style={styles.description}>{description}</Text> : null}
         {disabled && disabledNote ? (
-          <Text
-            style={{
-              fontSize: typography.size.xs,
-              color: colors.accent,
-              marginTop: 4,
-              fontStyle: 'italic',
-            }}>
-            {disabledNote}
-          </Text>
+          <Text style={styles.note}>{disabledNote}</Text>
         ) : null}
       </View>
       <Switch
@@ -78,13 +50,36 @@ export default function ToggleRow({
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-  },
-  rowDisabled: {opacity: 0.5},
-  rowText: {flex: 1},
-});
-
+function makeStyles(t: AppTheme) {
+  const {colors, spacing, typography} = t;
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderBottomWidth: 1,
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomColor: colors.border,
+      gap: spacing.md,
+    },
+    rowDisabled: {opacity: 0.5},
+    rowText: {flex: 1},
+    label: {
+      fontSize: typography.size.md,
+      fontWeight: typography.weight.medium,
+    },
+    description: {
+      fontSize: typography.size.sm,
+      color: colors.textMuted,
+      marginTop: 2,
+      lineHeight: 18,
+    },
+    note: {
+      fontSize: typography.size.xs,
+      color: colors.accent,
+      marginTop: 4,
+      fontStyle: 'italic',
+    },
+  });
+}
