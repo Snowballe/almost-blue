@@ -272,12 +272,16 @@ keytool -genkeypair -v \
 # et renseigner storePassword / keyPassword.
 ```
 
-**Construire un APK signé :**
+**Construire un APK signé (distribution) :**
 
 ```bash
-cd android && ./gradlew assembleRelease
-# → android/app/build/outputs/apk/release/app-release.apk
+./scripts/build-release.sh
+# → dist/almost-blue-v<versionName>.apk   (dist/ est gitignoré)
 ```
+
+Le script lit `versionName` dans `android/app/build.gradle`, lance `assembleRelease` et
+copie l'APK signé dans `dist/` sous un nom versionné. Équivalent manuel :
+`cd android && ./gradlew assembleRelease` → `android/app/build/outputs/apk/release/app-release.apk`.
 
 > ⚠️ **SAUVEGARDE CRITIQUE.** Le keystore et son mot de passe ne sont **que** sur la machine
 > de dev (gitignorés). Sauvegarde-les (password manager + copie hors ligne du `.keystore`).
