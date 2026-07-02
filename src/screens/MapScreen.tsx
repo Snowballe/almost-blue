@@ -159,13 +159,13 @@ export default function MapScreen({navigation}: Props) {
         })),
       ),
     ).then(results => {
-      const colors: Record<string, string> = {};
+      const pinColorMap: Record<string, string> = {};
       for (const r of results) {
         if (r.status === 'fulfilled') {
-          colors[r.value.id] = r.value.color;
+          pinColorMap[r.value.id] = r.value.color;
         }
       }
-      setPinColors(colors);
+      setPinColors(pinColorMap);
     });
   }, []);
 
