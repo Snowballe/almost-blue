@@ -34,6 +34,19 @@ const NAV_FONTS = {
   heavy:    {fontFamily: 'System', fontWeight: '900' as const},
 };
 
+// Icônes d'onglet définies au niveau module (références stables) plutôt que
+// recréées dans le render — évite react/no-unstable-nested-components.
+type TabIconProps = {color: string; size: number};
+const terrainIcon = ({color, size}: TabIconProps) => (
+  <MaterialIcons name="terrain" color={color} size={size} />
+);
+const mapIcon = ({color, size}: TabIconProps) => (
+  <MaterialIcons name="map" color={color} size={size} />
+);
+const settingsIcon = ({color, size}: TabIconProps) => (
+  <MaterialIcons name="settings" color={color} size={size} />
+);
+
 function TabNavigator() {
   const {colors, typography} = useTheme();
 
@@ -50,9 +63,7 @@ function TabNavigator() {
         component={SectorListScreen}
         options={{
           tabBarLabel: 'Secteurs',
-          tabBarIcon: ({color, size}) => (
-            <MaterialIcons name="terrain" color={color} size={size} />
-          ),
+          tabBarIcon: terrainIcon,
         }}
       />
       <Tab.Screen
@@ -60,9 +71,7 @@ function TabNavigator() {
         component={MapScreen}
         options={{
           tabBarLabel: 'Carte',
-          tabBarIcon: ({color, size}) => (
-            <MaterialIcons name="map" color={color} size={size} />
-          ),
+          tabBarIcon: mapIcon,
         }}
       />
       <Tab.Screen
@@ -70,9 +79,7 @@ function TabNavigator() {
         component={SettingsScreen}
         options={{
           tabBarLabel: 'Réglages',
-          tabBarIcon: ({color, size}) => (
-            <MaterialIcons name="settings" color={color} size={size} />
-          ),
+          tabBarIcon: settingsIcon,
           headerShown: true,
           headerStyle: {backgroundColor: colors.surface},
           headerTintColor: colors.textPrimary,
