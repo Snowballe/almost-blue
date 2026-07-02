@@ -1,6 +1,8 @@
 Almost Blue
 ===========
 
+[![CI](https://github.com/Snowballe/almost-blue/actions/workflows/ci.yml/badge.svg)](https://github.com/Snowballe/almost-blue/actions/workflows/ci.yml)
+
 « presque bleu » — comme un ciel presque parfait pour aller grimper hors saison.
 
 Application Android (React Native) qui surveille la météo sur des secteurs d'escalade hardcodés et envoie une notification locale quand une fenêtre favorable s'ouvre, en dehors de la période estivale.
