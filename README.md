@@ -21,7 +21,7 @@ Prérequis : Node ≥ 20, Java / Android SDK, émulateur ou device en mode débo
 
 ---
 
-## Fonctionnalités actuelles (v1.2)
+## Fonctionnalités actuelles (v1.3)
 
 - **Liste de secteurs** avec favoris persistés (Zustand + AsyncStorage)
 - **Carte OSM** (MapLibre, sans clé) — pins colorés par score météo
@@ -119,5 +119,5 @@ Copier `.env.example` → `.env`. Ne jamais committer `.env`.
 
 ## Roadmap
 
-- **v0 → v1.2** *(livré)* : secteurs hardcodés, liste + carte + favoris, météo pondérée par sous-secteur (orientation + roche), notifications locales, digest quotidien à heure configurable, fiabilité background (exemption batterie + alarmes exactes), hibernation estivale. Android.
+- **v0 → v1.3** *(livré)* : secteurs hardcodés, liste + carte + favoris, météo pondérée par sous-secteur (orientation + roche), notifications locales, digest quotidien à heure configurable, fiabilité background (exemption batterie + alarmes exactes), hibernation estivale. Android.
 - **À venir** : intégration Oblyk (recherche de secteurs), personnalisation fine des seuils météo, finalisation iOS, géolocalisation opt-in (secteurs proches).

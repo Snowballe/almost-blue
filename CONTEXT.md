@@ -4,7 +4,7 @@
 
 Application React Native qui alerte les grimpeurs outdoor quand une fenêtre météo favorable s'ouvre sur leurs secteurs d'escalade suivis, hors saison estivale.
 
-## État d'avancement (v1.2 — Android)
+## État d'avancement (v1.3 — Android)
 
 - ✅ Projet initialisé (RN 0.82 + TypeScript)
 - ✅ Architecture en place et fonctionnelle sur Android

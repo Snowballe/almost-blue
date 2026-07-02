@@ -112,7 +112,7 @@ RootStack
 
 ## Roadmap
 
-- **v0 → v1.2** *(livré)* : secteurs hardcodés, liste + carte (favoris), météo pondérée
+- **v0 → v1.3** *(livré)* : secteurs hardcodés, liste + carte (favoris), météo pondérée
   par sous-secteur (orientation + `rockType`), notifications locales, digest quotidien
   à heure configurable, fiabilité background (exemption batterie + alarmes exactes via
   module natif Android), hibernation estivale. Android.
