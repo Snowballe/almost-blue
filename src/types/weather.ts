@@ -3,7 +3,7 @@ export type WeatherScore = 'good' | 'ok' | 'bad';
 export interface WeatherSlot {
   date: string;
   hour: number;
-  /** Score dérivé du numericScore (pour les pins de la carte). */
+  /** Score générique dérivé du numericScore (sans orientation ni rockType). */
   score: WeatherScore;
   /** Score numérique additif, de 0 à 10. */
   numericScore: number;

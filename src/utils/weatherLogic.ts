@@ -198,12 +198,15 @@ function scoreSlotNumeric(
   return clamp(score);
 }
 
-// ─── Score de base (sans orientation, pour les pins de la carte) ──────────────
+// ─── Score de base (sans orientation ni type de roche) ────────────────────────
 
 /**
- * Score simplifié, sans correctif d'orientation.
- * Utilisé par buildForecast pour le pin de la carte.
- * Hypothèse conservatrice : séchage lent (pluie récente = pénalité pleine).
+ * Score générique d'un créneau, sans correctif d'orientation ni rockType.
+ * Plus aucun écran ne le consomme (MapScreen calcule ses pins via
+ * getSubSectorSummary) — il sert de référence de calibration du modèle
+ * dans les tests. Pour la pluie récente, faute de connaître la roche, il
+ * prend un moyen terme : coefficient sévère (slow) sur la fenêtre courte
+ * (6h) — plus dur que fast×6h, plus doux que slow×24h.
  */
 function scoreSlotBase(slot: WeatherSlot): number {
   let score = SCORE_WEIGHTS.BASE;
@@ -232,7 +235,8 @@ function scoreSlotBase(slot: WeatherSlot): number {
     score -= (MIN_TEMP - slot.temperature) * SCORE_WEIGHTS.TEMP_COLD_PER_DEG;
   }
 
-  // Pluie récente : hypothèse conservatrice (séchage lent + abrité, pénalité max)
+  // Pluie récente : moyen terme roche inconnue — coefficient slow × fenêtre 6h
+  // (la pluie tombée entre H-24 et H-6 n'est donc pas comptée ici).
   if (slot.recentRainMm6h > 0) {
     score += SCORE_WEIGHTS.RECENT_RAIN_PER_MM_SLOW * slot.recentRainMm6h * SCORE_WEIGHTS.EXPOSURE_SHELTERED;
   }
@@ -244,8 +248,9 @@ function scoreSlotBase(slot: WeatherSlot): number {
 
 /**
  * Transforme la réponse horaire Open-Meteo en WeatherForecast.
- * Le `numericScore` de chaque slot est calculé sans orientation (conservative),
- * et sert d'estimation générique pour les pins de la carte.
+ * Le `numericScore` de chaque slot est une estimation générique (sans
+ * orientation ni rockType) ; aucun écran ne l'affiche aujourd'hui, il sert
+ * de référence de calibration dans les tests.
  */
 export function buildForecast(hourly: OpenMeteoHourly): WeatherForecast {
   const slots: WeatherSlot[] = hourly.time.map((t, i) => {
