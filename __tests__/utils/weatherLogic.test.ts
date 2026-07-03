@@ -352,6 +352,37 @@ describe('getSubSectorSummary', () => {
     expect(summary.nextGoodWindow?.endHour).toBe(16); // 15 + 1
   });
 
+  /**
+   * TEST DE RÉGRESSION : la fenêtre ne doit pas enjamber la nuit.
+   * Le filtre 7h–20h rend adjacents le créneau de 20h et celui de 7h du
+   * lendemain ; l'ancienne logique fusionnait soirée + matinée en une seule
+   * fenêtre absurde (« 18h–10h »). La fenêtre doit se fermer à 21h.
+   */
+  it('[régression nuit] good le soir + good le lendemain matin → deux fenêtres, la 1ère est retournée', () => {
+    const slots = [
+      makeSlot('2026-06-16', 19),
+      makeSlot('2026-06-16', 20),
+      makeSlot('2026-06-17', 7),                         // good mais après la nuit
+      makeSlot('2026-06-17', 8),
+      makeSlot('2026-06-17', 9, {precipitation: 1.0}),   // bad
+    ];
+    const summary = getSubSectorSummary(makeForecast(slots), 'S');
+    expect(summary.nextGoodWindow?.date).toBe('2026-06-16');
+    expect(summary.nextGoodWindow?.startHour).toBe(19);
+    expect(summary.nextGoodWindow?.endHour).toBe(21); // 20 + 1, pas 9 !
+  });
+
+  it('[régression nuit] un trou horaire intra-journée clôt aussi la fenêtre', () => {
+    const slots = [
+      makeSlot('2026-06-16', 14),
+      makeSlot('2026-06-16', 15),
+      makeSlot('2026-06-16', 18),  // good mais non contigu (16h–17h absents)
+    ];
+    const summary = getSubSectorSummary(makeForecast(slots), 'S');
+    expect(summary.nextGoodWindow?.startHour).toBe(14);
+    expect(summary.nextGoodWindow?.endHour).toBe(16); // 15 + 1
+  });
+
   // ── Correctifs d'orientation (température) ──────────────────────────────────
 
   // Seuil de base MIN_TEMP = 2°C, pénalité douce (0.5/°C) : le froid sec ne mord

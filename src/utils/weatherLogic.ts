@@ -344,15 +344,25 @@ export function getSubSectorSummary(
     if (numericScore > bestNumericScore) bestNumericScore = numericScore;
   }
 
-  // Première fenêtre de créneaux "good" consécutifs
+  // Première fenêtre de créneaux "good" consécutifs.
+  // `scored` ne contient que les heures de jour : le créneau de 20h et celui
+  // de 7h du lendemain y sont adjacents. Une fenêtre ne doit pas enjamber
+  // cette coupure (sinon on affiche « ven. 18h–10h ») → on exige la vraie
+  // contiguïté temporelle (même date, heure suivante) pour la prolonger.
   let nextGoodWindow: SubSectorSummary['nextGoodWindow'] = null;
   let windowStart: number | null = null;
 
   for (let i = 0; i <= scored.length; i++) {
     const isGood = i < scored.length && scored[i].numericScore >= SCORE_WEIGHTS.THRESHOLD_GOOD;
-    if (isGood && windowStart === null) {
-      windowStart = i;
-    } else if (!isGood && windowStart !== null) {
+    const contiguous =
+      i > 0 &&
+      i < scored.length &&
+      scored[i].slot.date === scored[i - 1].slot.date &&
+      scored[i].slot.hour === scored[i - 1].slot.hour + 1;
+
+    if (windowStart === null) {
+      if (isGood) windowStart = i;
+    } else if (!isGood || !contiguous) {
       const first = scored[windowStart].slot;
       const last  = scored[i - 1].slot;
       nextGoodWindow = {
