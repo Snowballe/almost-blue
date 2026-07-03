@@ -1,5 +1,11 @@
 # Almost Blue — CLAUDE.md
 
+> ⚠️ **Branche `rewrite/kotlin` — réécriture native en cours.** Le pilotage du
+> chantier est dans **`PLAN-KOTLIN.md`** (état courant, prochaine action) : commencer
+> par le lire. Ce document décrit l'app React Native v1.3 dont le code gelé vit dans
+> `spec/` — il sert de **spécification de parité**, pas de description du projet
+> Gradle à la racine. Il sera réécrit à la bascule (M6).
+
 Application React Native qui alerte les grimpeurs outdoor quand une fenêtre météo favorable s'ouvre sur leurs secteurs d'escalade suivis, hors saison estivale.
 
 ## Stack
