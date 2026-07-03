@@ -3,7 +3,6 @@ package com.almostblue.domain
 import com.almostblue.data.OpenMeteoHourly
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 
 /**
  * Logique météo — port 1:1 de spec/src/utils/weatherLogic.ts (v1.3, fixes
@@ -290,15 +289,13 @@ fun buildForecast(hourly: OpenMeteoHourly): WeatherForecast {
 
 // ─── Utilitaire timezone ──────────────────────────────────────────────────────
 
-private val PARIS = ZoneId.of("Europe/Paris")
-
 /**
  * Convertit une date + heure en heure locale Europe/Paris vers un timestamp UTC.
  * Le TS approximait l'offset via l'heure de midi (pas de lib timezone en RN) ;
  * java.time le fait exactement — comportement identique sur les heures de jour.
  */
 private fun parisLocalToUTC(dateStr: String, hour: Int): Long =
-    LocalDate.parse(dateStr).atTime(hour, 0).atZone(PARIS).toInstant().toEpochMilli()
+    LocalDate.parse(dateStr).atTime(hour, 0).atZone(PARIS_ZONE).toInstant().toEpochMilli()
 
 // ─── Résumé par sous-secteur ──────────────────────────────────────────────────
 
