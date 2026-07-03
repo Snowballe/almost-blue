@@ -9,8 +9,8 @@
 
 ## État courant
 
-- **Jalon en cours : M1** (M0 terminé le 2026-07-03 : scaffold buildé, installé sur A52, CI gradle en place)
-- **Prochaine action : M1** — créer `app/src/main/java/com/almostblue/domain/WeatherLogic.kt` (port 1:1 de `spec/src/utils/weatherLogic.ts`) puis porter les 48 tests de `spec/__tests__/utils/weatherLogic.test.ts` en JUnit.
+- **Jalon en cours : M2** (M0 et M1 terminés le 2026-07-03 — domaine pur porté, 82 tests JUnit verts, spec verrouillée)
+- **Prochaine action : M2** — transcrire `spec/src/data/sectors.ts` en `data/Sectors.kt` (8 secteurs / 71 sous-secteurs), puis `OpenMeteoClient.kt` (cache 1h + dédup, port des 8 tests de `spec/__tests__/services/openMeteo.test.ts`), puis les 3 repositories DataStore (port des ~44 tests stores).
 
 ## Cadre (validé utilisateur, 2026-07-03)
 
@@ -38,12 +38,12 @@ MapLibre Android SDK, JUnit. R8/minify : désactivé jusqu'à M6.
 - [x] Mémoire `kotlin-rewrite.md` + commits M0 (`a162e78`, `fe0a344`, `47046f2`)
 - **DoD** : CI verte sur la branche (à confirmer au premier push).
 
-### M1 — Domaine pur + spec verrouillée
-- [ ] `domain/WeatherLogic.kt` : `SCORE_WEIGHTS`, `scoreSlotNumeric`, `scoreSlotBase` (compromis slow×6h documenté), `buildForecast`, `getSubSectorSummary` (fix contiguïté nuit inclus), Paris→UTC via `java.time`
-- [ ] `domain/SeasonLogic.kt` (encode m*100+d, fenêtre croisant 31/12, dégénéré, `nextSeasonChangeDate`, fév=28)
-- [ ] `domain/OrientationUtils.kt` (LABEL flèches + FR) et `domain/ColorUtils.kt` (gradient rouge→jaune→vert, `rgb(r,g,b)`)
-- [ ] Port JUnit : weatherLogic (48), seasonLogic (22), colorUtils (7), orientationUtils — mêmes valeurs, date figée 2026-06-15T10:00Z
-- **DoD** : ~80 tests verts.
+### M1 — Domaine pur + spec verrouillée ✅ (2026-07-03)
+- [x] `domain/WeatherLogic.kt` : `ScoreWeights`, `scoreSlotNumeric`, `scoreSlotBase` (compromis slow×6h documenté), `buildForecast`, `getSubSectorSummary` (fix contiguïté nuit inclus), Paris→UTC exact via `java.time`, `nowMs` injectable pour les tests (commit `c1a314b`)
+- [x] `domain/SeasonLogic.kt` sur `java.time.LocalDate`
+- [x] `domain/OrientationUtils.kt` (extensions `label`/`frenchName`) et `domain/ColorUtils.kt` (`scoreGradientRgb` → triplet, la string CSS était un format RN)
+- [x] Port JUnit : weatherLogic 48, seasonLogic 24, colorUtils 7, orientationUtils 3 = **82 tests verts**
+- **DoD atteint** : modèle météo verrouillé.
 
 ### M2 — Data
 - [ ] `data/Sectors.kt` : 8 secteurs / 71 sous-secteurs transcrits de `spec/src/data/sectors.ts`
