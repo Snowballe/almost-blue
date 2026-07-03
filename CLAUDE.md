@@ -7,7 +7,7 @@ Application React Native qui alerte les grimpeurs outdoor quand une fenêtre mé
 | Couche | Choix |
 |---|---|
 | Framework | React Native 0.82 + TypeScript |
-| Cibles | Android (priorité) → iOS → Web |
+| Cibles | Android (iOS abandonné — pas de Mac ; Web éventuel) |
 | État | Zustand (persist AsyncStorage) |
 | Navigation | React Navigation (native-stack + bottom-tabs) |
 | HTTP | axios |
@@ -117,8 +117,10 @@ RootStack
   à heure configurable, fiabilité background (exemption batterie + alarmes exactes via
   module natif Android), hibernation estivale. Android.
 - **À venir** : Oblyk API (recherche secteurs), personnalisation fine des seuils météo,
-  finalisation iOS (scaffold présent, couche fiabilité Android-only), géoloc "secteurs
-  proches", analytics opt-in.
+  géoloc "secteurs proches", analytics opt-in.
+- **iOS : abandonné** *(2026-07)* — développer/tester/distribuer exige un Mac ou un
+  compte Apple Developer (99 $/an) ; aucun chemin gratuit depuis Linux. Le scaffold
+  `ios/` (vierge) est conservé au cas où, mais ne pas relancer ce chantier.
 
 ## Conventions
 

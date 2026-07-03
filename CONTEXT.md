@@ -18,7 +18,7 @@ Application React Native qui alerte les grimpeurs outdoor quand une fenêtre mé
 - ✅ Hibernation estivale configurable
 - ⏳ Corriger les 14 orientations marquées « estimée » dans `src/data/sectors.ts`
 - ⏳ Affinage / calibration des seuils météo
-- ⏳ Finalisation iOS (scaffold présent, couche fiabilité Android-only)
+- ❌ iOS abandonné (pas de Mac ni compte Apple Developer — le scaffold `ios/` reste en place)
 
 ## Décisions clés
 

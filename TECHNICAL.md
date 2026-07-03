@@ -5,7 +5,7 @@
 | Couche | Technologie | Version |
 |---|---|---|
 | Framework | React Native + TypeScript | 0.82 / strict |
-| Cibles | Android (priorité) → iOS → Web | — |
+| Cibles | Android (iOS abandonné — pas de Mac ; Web éventuel) | — |
 | État | Zustand + persist (AsyncStorage) | ^5 |
 | Navigation | React Navigation (native-stack + bottom-tabs) | — |
 | HTTP | axios | ^1 |
