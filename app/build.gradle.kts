@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // Credentials de signature release : keystore.properties à la racine (gitignoré).
@@ -23,6 +24,10 @@ android {
         targetSdk = 36
         versionCode = 5
         versionName = "2.0"
+
+        // Équivalent du .env de la v1.3 (OPEN_METEO_API_BASE_URL) — pas un
+        // secret, l'API est gratuite et sans clé.
+        buildConfigField("String", "OPEN_METEO_BASE_URL", "\"https://api.open-meteo.com\"")
     }
 
     signingConfigs {
@@ -68,6 +73,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -81,5 +87,10 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
 
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.android)
+
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
