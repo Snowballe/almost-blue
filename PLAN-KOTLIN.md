@@ -9,8 +9,8 @@
 
 ## État courant
 
-- **Jalon en cours : M3** (M0, M1, M2 terminés le 2026-07-03 — **110 tests JUnit verts**, domaine + data complets)
-- **Prochaine action : M3** — lire `spec/src/services/notificationService.ts` + `spec/__tests__/services/notificationService.test.ts` (40 tests, à porter fidèlement — messages FR = spec), écrire `notifications/NotificationHelper.kt` (canal + messages), puis `CheckWorker` (WorkManager), `DigestReceiver` + `DigestScheduler` (AlarmManager exact), `BootReceiver`, et la fiabilité native (`notifications/Reliability.kt`). Permissions manifest à ajouter. Validation device A52 à la fin (notif test, check forcé, digest à l'heure pile sur une nuit).
+- **Jalon en cours : M3 — code terminé, validation device en attente** (M0-M2 finis ; **151 tests verts**)
+- **Prochaine action : validation utilisateur M3** — déverrouiller le A52, ouvrir AlmostBlue (.next), taper les 4 boutons dans l'ordre (① favori Buoux, ② notif test, ③ check forcé, ④ digest forcé) et confirmer que les notifications apparaissent avec les bons textes FR. Puis attendre le digest de demain 10h00 (alarme exacte déjà armée, vérifiée par dumpsys). Ensuite → M4 (UI Compose).
 
 ## Cadre (validé utilisateur, 2026-07-03)
 
@@ -53,13 +53,15 @@ MapLibre Android SDK, JUnit. R8/minify : désactivé jusqu'à M6.
 - [x] Smoke test : contrat API vérifié en live sur Buoux (tous les champs hourly présents)
 - **DoD atteint** : 110 tests verts au total.
 
-### M3 — Notifications + background
-- [ ] Canal `weather-alerts` HIGH ; messages FR identiques (`buildNotificationBody`, `formatNextWindow`, `buildDigestLines` + « dans son ensemble », BigText digest)
-- [ ] `CheckWorker` WorkManager (intervalle settings, réseau requis) : gardes saison/été, transitions !good→good, ré-armement digest auto-réparant
-- [ ] `DigestReceiver` + `setExactAndAllowWhileIdle` + gardes anti-doublon (contenu/jour Paris) ; `BootReceiver`
-- [ ] Fiabilité native : `isIgnoringBatteryOptimizations`, `canScheduleExactAlarms`, intents réglages ; permissions manifest (INTERNET, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, USE_EXACT_ALARM, SCHEDULE_EXACT_ALARM, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-- [ ] Port des 40 tests notificationService
-- **DoD** : tests verts + validation device (notif test, check forcé, digest à l'heure pile app fermée sur une nuit).
+### M3 — Notifications + background — code ✅, validation device ⏳
+- [x] Canal `weather-alerts` HIGH ; messages FR identiques (`buildNotificationBody`, `formatNextWindow`, `buildDigestLines` + « dans son ensemble », BigText digest)
+- [x] `CheckWorker` WorkManager (intervalle settings, réseau requis) : gardes saison/été, transitions !good→good, ré-armement digest auto-réparant
+- [x] `DigestReceiver` + `setExactAndAllowWhileIdle` + gardes anti-doublon (contenu/jour Paris) ; `BootReceiver`
+- [x] Fiabilité native : `isIgnoringBatteryOptimizations`, `canScheduleExactAlarms`, intents réglages ; permissions manifest complètes. ⚠️ Simplification assumée : pas de détection du power manager OEM (`needsPowerManager` notifee) — à trancher en M4 avec la ReliabilitySection (3e FixRow « Démarrage automatique »)
+- [x] Port des 40 tests (41 avec le scheduler) — 151 tests verts au total
+- [x] Vérifié par dumpsys : alarme exacte armée (`window=0`, demain 10h, `policy_permission`) + job WorkManager enregistré
+- [ ] **Validation utilisateur** : boutons ①→④ du placeholder (textes FR corrects) + digest de demain 10h app fermée
+- **DoD** : tests verts ✅ + validation device ⏳.
 
 ### M4 — UI Compose (hors carte)
 - [ ] Navigation bottom bar (Secteurs/Carte/Réglages) + détail + gate hibernation (reset auto override)
