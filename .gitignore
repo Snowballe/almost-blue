@@ -1,41 +1,18 @@
-# Secrets
-.env
-.env.local
-.env.*.local
+# Gradle / Android
+.gradle/
+build/
+local.properties
+.kotlin/
 
-# Dependencies
-node_modules/
-
-# React Native
-.expo/
-dist/
-web-build/
-
-# Android
-android/app/build/
-android/app/.cxx/
-android/build/
-android/.gradle/
-android/local.properties
-android/keystore.properties
-android/*.keystore
-# Keystore release (secret) — ignoré partout, sauf le debug.keystore (public, versionné)
-android/app/*.keystore
-!android/app/debug.keystore
+# Signature — jamais dans git (keystore release + credentials)
+keystore.properties
+*.keystore
+!app/debug.keystore
 *.apk
 *.aab
 
-# iOS
-ios/build/
-ios/Pods/
-ios/*.xcworkspace
-ios/*.xcuserdata
-
-# Metro
-.metro-health-check*
-
-# Test
-coverage/
+# Sorties
+dist/
 
 # System
 .DS_Store

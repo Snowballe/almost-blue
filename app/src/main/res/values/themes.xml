@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fond sombre dès le cold start (pas de flash blanc avant Compose). -->
+    <style name="Theme.AlmostBlue" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0D0F14</item>
+        <item name="android:statusBarColor">#0D0F14</item>
+    </style>
+</resources>
