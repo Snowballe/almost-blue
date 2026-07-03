@@ -70,10 +70,10 @@ function buildNotificationBody(
 }
 
 function getEarliestWindow(
-  goodOrientations: GoodOrientation[],
+  items: Array<{nextGoodWindow: {date: string; startHour: number; endHour: number} | null}>,
 ): {date: string; startHour: number; endHour: number} | null {
   let earliest: {date: string; startHour: number; endHour: number} | null = null;
-  for (const {nextGoodWindow} of goodOrientations) {
+  for (const {nextGoodWindow} of items) {
     if (!nextGoodWindow) continue;
     if (
       !earliest ||
@@ -276,6 +276,29 @@ export function formatNextWindow(
 }
 
 /**
+ * Forme compacte « dès … » pour la ligne « grimpable dans son ensemble ».
+ * Ex : "dès aujourd'hui", "dès demain", "dès mercredi".
+ * Renvoie null en l'absence de fenêtre (défensif — ne devrait pas arriver quand
+ * toutes les faces sont 'good').
+ */
+export function formatEnsembleTiming(
+  window: {date: string; startHour: number; endHour: number} | null,
+): string | null {
+  if (!window) return null;
+
+  const today    = todayParis();
+  const tomorrow = tomorrowParis();
+
+  if (window.date === today)    return "dès aujourd'hui";
+  if (window.date === tomorrow) return 'dès demain';
+
+  const weekday = new Date(window.date + 'T12:00:00Z')
+    .toLocaleDateString('fr-FR', {weekday: 'long'});
+
+  return `dès ${weekday}`;
+}
+
+/**
  * Construit les lignes du digest à partir des forecasts déjà fetchés.
  * Une ligne par secteur, orientation la plus favorable sur 7 jours.
  */
@@ -298,7 +321,11 @@ export function buildDigestLines(
     }
     if (orientationMap.size === 0) continue;
 
-    // Choisir l'orientation avec le meilleur score numérique sur 7 jours
+    // Scorer chaque orientation distincte, tout en gardant le meilleur pour le repli
+    const summaries: {
+      score: WeatherScore;
+      nextGoodWindow: {date: string; startHour: number; endHour: number} | null;
+    }[] = [];
     let bestScore = -1;
     let bestOrientation: Orientation | null = null;
     let bestWindow: {date: string; startHour: number; endHour: number} | null = null;
@@ -307,6 +334,7 @@ export function buildDigestLines(
       const rockType =
         sector.subSectors.find(ss => ss.orientation === orientation)?.rockType ?? 'slow';
       const summary = getSubSectorSummary(forecast, orientation, rockType, DIGEST_HORIZON_HOURS);
+      summaries.push({score: summary.score, nextGoodWindow: summary.nextGoodWindow});
       if (summary.numericScore > bestScore) {
         bestScore       = summary.numericScore;
         bestOrientation = orientation;
@@ -315,6 +343,15 @@ export function buildDigestLines(
     }
 
     if (!bestOrientation) continue;
+
+    // Secteur multi-faces entièrement sec → phrase « dans son ensemble »
+    if (orientationMap.size >= 2 && summaries.every(s => s.score === 'good')) {
+      const timing = formatEnsembleTiming(getEarliestWindow(summaries));
+      lines.push(
+        `${sector.name} — grimpable dans son ensemble${timing ? ` (${timing})` : ''}`,
+      );
+      continue;
+    }
 
     const faceLabel = ORIENTATION_FR[bestOrientation] ?? bestOrientation;
     const status    = formatNextWindow(bestWindow);

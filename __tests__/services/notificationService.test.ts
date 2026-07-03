@@ -295,6 +295,32 @@ describe('buildDigestLines', () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]).toContain('Falaise Test');
   });
+
+  it('affiche "grimpable dans son ensemble" quand toutes les faces d\'un secteur multi sont good', () => {
+    // WINTER_DATE = 2026-12-15 → fenêtre le 2026-12-16 = demain
+    mockGetSubSectorSummary.mockReturnValue({
+      score: 'good',
+      numericScore: 8,
+      nextGoodWindow: {date: '2026-12-16', startHour: 10, endHour: 18},
+    });
+    const forecasts = new Map<string, WeatherForecast>([['test-multi', EMPTY_FORECAST]]);
+    const lines = buildDigestLines([SECTOR_MULTI], forecasts);
+    expect(lines[0]).toContain('grimpable dans son ensemble');
+    expect(lines[0]).toContain('dès demain');
+    expect(lines[0]).not.toContain('Face');
+  });
+
+  it('ne dit pas "dans son ensemble" pour un secteur mono-face, même good', () => {
+    mockGetSubSectorSummary.mockReturnValue({
+      score: 'good',
+      numericScore: 8,
+      nextGoodWindow: {date: '2026-12-16', startHour: 10, endHour: 18},
+    });
+    const forecasts = new Map<string, WeatherForecast>([['test-single', EMPTY_FORECAST]]);
+    const lines = buildDigestLines([SECTOR_SINGLE], forecasts);
+    expect(lines[0]).not.toContain('dans son ensemble');
+    expect(lines[0]).toContain('Face Sud');
+  });
 });
 
 // ─── sendDailyDigest ──────────────────────────────────────────────────────────
