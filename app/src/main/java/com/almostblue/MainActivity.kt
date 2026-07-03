@@ -37,6 +37,11 @@ private fun PlaceholderScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("Almost Blue", color = AppTheme.colors.textPrimary, fontSize = FontSize.xxl)
-        Text("Réécriture Kotlin — M0", color = AppTheme.colors.textMuted, fontSize = FontSize.md)
+        Text("Réécriture Kotlin — M2/M6", color = AppTheme.colors.textMuted, fontSize = FontSize.md)
+        Text(
+            "Moteur météo + data portés · 110 tests verts\nUI en cours (M4), carte (M5)",
+            color = AppTheme.colors.textDisabled,
+            fontSize = FontSize.sm,
+        )
     }
 }
