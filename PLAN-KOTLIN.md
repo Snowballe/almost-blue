@@ -9,8 +9,8 @@
 
 ## État courant
 
-- **Jalon en cours : M2** (M0 et M1 terminés le 2026-07-03 — domaine pur porté, 82 tests JUnit verts, spec verrouillée)
-- **Prochaine action : M2** — transcrire `spec/src/data/sectors.ts` en `data/Sectors.kt` (8 secteurs / 71 sous-secteurs), puis `OpenMeteoClient.kt` (cache 1h + dédup, port des 8 tests de `spec/__tests__/services/openMeteo.test.ts`), puis les 3 repositories DataStore (port des ~44 tests stores).
+- **Jalon en cours : M3** (M0, M1, M2 terminés le 2026-07-03 — **110 tests JUnit verts**, domaine + data complets)
+- **Prochaine action : M3** — lire `spec/src/services/notificationService.ts` + `spec/__tests__/services/notificationService.test.ts` (40 tests, à porter fidèlement — messages FR = spec), écrire `notifications/NotificationHelper.kt` (canal + messages), puis `CheckWorker` (WorkManager), `DigestReceiver` + `DigestScheduler` (AlarmManager exact), `BootReceiver`, et la fiabilité native (`notifications/Reliability.kt`). Permissions manifest à ajouter. Validation device A52 à la fin (notif test, check forcé, digest à l'heure pile sur une nuit).
 
 ## Cadre (validé utilisateur, 2026-07-03)
 
@@ -45,12 +45,13 @@ MapLibre Android SDK, JUnit. R8/minify : désactivé jusqu'à M6.
 - [x] Port JUnit : weatherLogic 48, seasonLogic 24, colorUtils 7, orientationUtils 3 = **82 tests verts**
 - **DoD atteint** : modèle météo verrouillé.
 
-### M2 — Data
-- [ ] `data/Sectors.kt` : 8 secteurs / 71 sous-secteurs transcrits de `spec/src/data/sectors.ts`
-- [ ] `data/OpenMeteoClient.kt` : params identiques (hourly 6 champs, forecast_days=3, timezone Europe/Paris), cache 1h clé `%.4f,%.4f`, dédup en vol ; base URL en BuildConfig
-- [ ] 3 repositories DataStore = champs/défauts des stores Zustand (settings 11 champs, favoris, lastScores/digest)
-- [ ] Port tests openMeteo (8) + stores (~44)
-- **DoD** : tests verts + smoke test fetch Buoux.
+### M2 — Data ✅ (2026-07-03)
+- [x] `data/Sectors.kt` : 8 secteurs / **72** sous-secteurs (la spec en compte 72, pas 71) + test d'unicité/comptage
+- [x] `data/OpenMeteoClient.kt` : params identiques, cache 1h clé `%.4f` Locale.US, dédup en vol (attente hors mutex !), base URL en BuildConfig — 8 tests
+- [x] 3 repositories DataStore (Settings 11 champs / Sectors favoris ordre préservé / Notification scores JSON) — 16 tests ré-dérivés du contrat Zustand (structurels, pas de calibration)
+- [x] Desugaring core-library activé (java.time exige API 26, minSdk reste 24)
+- [x] Smoke test : contrat API vérifié en live sur Buoux (tous les champs hourly présents)
+- **DoD atteint** : 110 tests verts au total.
 
 ### M3 — Notifications + background
 - [ ] Canal `weather-alerts` HIGH ; messages FR identiques (`buildNotificationBody`, `formatNextWindow`, `buildDigestLines` + « dans son ensemble », BigText digest)
