@@ -88,6 +88,9 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.material3)
+    implementation(libs.androidx.navigation.compose)
+    // Icônes terrain/map/settings — R8 (M6) ne gardera que les 3 utilisées.
+    implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
 

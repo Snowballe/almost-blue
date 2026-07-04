@@ -22,6 +22,15 @@ enum class ColorScheme { DARK, LIGHT }
 /** Intervalles de check autorisés (minutes) — labels UI : 1h/3h/6h/12h/24h. */
 val CHECK_INTERVALS = listOf(60, 180, 360, 720, 1440)
 
+/** Labels UI des intervalles — port de CHECK_INTERVAL_LABELS (useSettingsStore.ts). */
+val CHECK_INTERVAL_LABELS = mapOf(
+    60 to "1h",
+    180 to "3h",
+    360 to "6h",
+    720 to "12h",
+    1440 to "24h",
+)
+
 data class Settings(
     val notificationsEnabled: Boolean = true,
     val checkIntervalMinutes: Int = 180,
