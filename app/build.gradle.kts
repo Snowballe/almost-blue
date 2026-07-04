@@ -89,6 +89,8 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.material3)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.maplibre.android)
+    implementation(libs.maplibre.annotation)
     // Icônes terrain/map/settings — R8 (M6) ne gardera que les 3 utilisées.
     implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.ui.tooling.preview)

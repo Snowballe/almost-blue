@@ -1,11 +1,7 @@
 package com.almostblue.ui
 
 import android.app.NotificationManager
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Map
@@ -30,7 +26,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -49,6 +44,7 @@ import com.almostblue.notifications.getReliabilityStatus
 import com.almostblue.notifications.isReliabilityOk
 import com.almostblue.notifications.requestBatteryOptimizationExemption
 import com.almostblue.ui.screens.HibernationScreen
+import com.almostblue.ui.screens.MapScreen
 import com.almostblue.ui.screens.SectorDetailScreen
 import com.almostblue.ui.screens.SectorListScreen
 import com.almostblue.ui.screens.SettingsScreen
@@ -173,7 +169,9 @@ private fun MainNavigation(settings: Settings) {
                     onOpenSector = { id -> navController.navigate("sector/$id") },
                 )
             }
-            composable("map") { MapPlaceholder() }
+            composable("map") {
+                MapScreen(onOpenSector = { id -> navController.navigate("sector/$id") })
+            }
             composable("settings") { SettingsScreen(settings = settings) }
             composable("sector/{sectorId}") { entry ->
                 SectorDetailScreen(sectorId = entry.arguments?.getString("sectorId") ?: "")
@@ -215,18 +213,6 @@ private fun AppTopBar(title: String, onBack: (() -> Unit)? = null, sectorId: Str
             }
         },
     )
-}
-
-/** Provisoire M5. */
-@Composable
-private fun MapPlaceholder() {
-    Column(
-        Modifier.fillMaxSize().background(AppTheme.colors.background),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("Carte MapLibre — M5", color = AppTheme.colors.textMuted, fontSize = FontSize.md)
-    }
 }
 
 /**
