@@ -4,79 +4,65 @@
 
 | Couche | Technologie | Version |
 |---|---|---|
-| Framework | React Native + TypeScript | 0.82 / strict |
-| Cibles | Android (iOS abandonné — pas de Mac ; Web éventuel) | — |
-| État | Zustand + persist (AsyncStorage) | ^5 |
-| Navigation | React Navigation (native-stack + bottom-tabs) | — |
-| HTTP | axios | ^1 |
-| Carte | @maplibre/maplibre-react-native + tuiles OSM | ^11 |
-| Notifications | @notifee/react-native | ^9 |
-| Tâches fond | react-native-background-fetch | ^4 |
+| Langage | Kotlin (AGP 8.12, Gradle 8.13) | 2.1 |
+| Cible | Android — minSdk 24, targetSdk 36 (iOS abandonné) | — |
+| UI | Jetpack Compose + Material3, tokens custom | BOM 2024.12 |
+| Navigation | androidx.navigation:navigation-compose | 2.8 |
+| Persistance | DataStore Preferences | 1.1 |
+| HTTP | OkHttp + kotlinx.serialization | 4.12 / 1.7 |
+| Carte | MapLibre Android + plugin annotations, tuiles OSM | 11.11 / 3.0 |
+| Notifications | NotificationManager natif (canal `weather-alerts`, HIGH) | — |
+| Tâches fond | WorkManager + AlarmManager exact + BootReceiver | 2.10 |
 | Météo | Open-Meteo (gratuit, sans clé) | — |
-| Tests | Jest + React Test Renderer | — |
+| Tests | JUnit + kotlinx-coroutines-test | 4.13 |
+
+`java.time` sur minSdk 24 via core library desugaring.
 
 ---
 
-## Arborescence `src/`
+## Arborescence `app/src/main/java/com/almostblue/`
 
 ```
-src/
-├── components/
-│   ├── ErrorBoundary.tsx          Boundary React pour les crashs non gérés
-│   ├── FavoriteButton.tsx         Bouton ★/☆ réutilisable (thème interne)
-│   ├── MonthDayPicker.tsx         Sélecteur jour/mois pour les bornes de saison
-│   └── settings/
-│       ├── SectionHeader.tsx      En-tête de section de l'écran Paramètres
-│       ├── ToggleRow.tsx          Ligne toggle (Switch) avec label + description
-│       ├── DateRow.tsx            Ligne date cliquable avec chevron
-│       ├── IntervalSelector.tsx   Sélecteur de fréquence en chips
-│       ├── HourSelector.tsx       Sélecteur d'heure du digest (0–23)
-│       └── ReliabilitySection.tsx Section « Fiabilité » (exemption batterie / alarmes exactes)
+├── AlmostBlueApp.kt          Application : canal notif + re-planification réactive
+├── AppGraph.kt               DI minimaliste (singleton) + pose de l'alarme exacte
+├── MainActivity.kt           Permission POST_NOTIFICATIONS + setContent { AppRoot() }
+│
+├── domain/                   Logique pure, sans dépendance Android
+│   ├── WeatherLogic.kt       ScoreWeights, scoreSlotNumeric, buildForecast,
+│   │                         getSubSectorSummary (score pondéré, fenêtres good)
+│   ├── SeasonLogic.kt        isOffSeason, nextSeasonChangeDate, maxDayForMonth
+│   ├── OrientationUtils.kt   label (flèches) + frenchName par orientation
+│   ├── ColorUtils.kt         scoreGradientRgb (score → triplet rouge→jaune→vert)
+│   ├── WeatherTypes.kt       WeatherScore | WeatherSlot | WeatherForecast | SubSectorSummary
+│   └── Time.kt               Zone Paris + conversions
 │
 ├── data/
-│   └── sectors.ts                 Base de données hardcodée des secteurs (8 sites, 72 sous-secteurs)
+│   ├── Sector.kt             Orientation | RockType | SubSector | Sector
+│   ├── Sectors.kt            Base hardcodée : 8 sites, 72 sous-secteurs
+│   ├── OpenMeteoClient.kt    Client Open-Meteo — cache 1h + déduplication en vol
+│   ├── OpenMeteoHourly.kt    Modèles kotlinx.serialization de la réponse
+│   ├── SettingsRepository.kt Réglages (11 champs, mêmes défauts que la v1.3)
+│   ├── SectorsRepository.kt  IDs favoris (ordre préservé)
+│   └── NotificationRepository.kt  lastScores + dédup digest (JSON)
 │
-├── hooks/
-│   ├── useNotificationSetup.ts    Init notifications + background-fetch + digest au démarrage
-│   └── usePrefetchFavorites.ts    Préchauffe le cache météo des favoris à l'ouverture
+├── notifications/
+│   ├── WeatherNotifier.kt    checkAndNotify (transitions !good→good) + sendDailyDigest
+│   ├── NotificationMessages.kt  Messages FR exacts v1.3 (corps, fenêtres, digest)
+│   ├── AndroidNotifier.kt    Frontière NotificationManager (fake-able en test)
+│   ├── DigestScheduler.kt    Calcul du délai jusqu'au prochain digest
+│   └── Reliability.kt        Doze / alarmes exactes / gestionnaire OEM + intents système
 │
-├── navigation/
-│   └── AppNavigator.tsx           Navigateur racine (Stack + Tabs + HibernationScreen conditionnel)
+├── background/
+│   ├── CheckWorker.kt        Check périodique WorkManager (réseau requis, backoff)
+│   ├── DigestReceiver.kt     Tir du digest (alarme exacte) + ré-armement
+│   └── BootReceiver.kt       Re-planification au boot
 │
-├── screens/
-│   ├── HibernationScreen.tsx      Écran d'hibernation estivale (affiché si hors saison)
-│   ├── MapScreen.tsx              Carte MapLibre avec pins colorés par score météo
-│   ├── SectorDetailScreen.tsx     Détail d'un secteur — météo 48h par sous-secteur
-│   ├── SectorListScreen.tsx       Liste des secteurs (favoris en haut)
-│   └── SettingsScreen.tsx         Notifications, saison, apparence, debug
-│
-├── services/
-│   ├── openMeteo.ts               Client Open-Meteo avec cache 1h + déduplication
-│   └── notificationService.ts     Logique d'alerte météo (détection transition → notif)
-│
-├── stores/
-│   ├── useSectorsStore.ts         Zustand — IDs des secteurs favoris (persisté)
-│   ├── useSettingsStore.ts        Zustand — réglages app (notifications, saison, thème)
-│   └── useNotificationStore.ts    Zustand — derniers scores connus (persisté, pour diff)
-│
-├── theme/
-│   ├── colors.ts                  Palettes dark + light (tokens nommés)
-│   ├── typography.ts              Échelle de tailles + graisses + interlignes
-│   ├── spacing.ts                 Grille 4px (xs → xxxl)
-│   ├── ThemeContext.tsx            ThemeProvider + useTheme() hook
-│   └── index.ts                   Re-exports + HIT_SLOP + ACTIVE_OPACITY constants
-│
-├── types/
-│   ├── sector.ts                  Orientation | SubSector | Sector
-│   ├── weather.ts                 WeatherScore | WeatherSlot | WeatherForecast | SubSectorSummary
-│   └── env.d.ts                   Déclaration @env (OPEN_METEO_API_BASE_URL)
-│
-└── utils/
-    ├── orientationUtils.ts        ORIENTATION_LABEL (flèches) + ORIENTATION_FR (noms complets)
-    ├── colorUtils.ts              Score → couleur de pin / badge
-    ├── notificationReliability.ts Statut Doze / alarmes exactes / OEM + routage réglages
-    ├── seasonLogic.ts             isOffSeason, nextSeasonChangeDate, maxDayForMonth
-    └── weatherLogic.ts            buildForecast, getSubSectorSummary (score pondéré)
+└── ui/
+    ├── AppRoot.kt            Thème piloté par les réglages, gate hibernation,
+    │                         tabs Secteurs/Carte/Réglages + détail, invite fiabilité
+    ├── screens/              SectorList, SectorDetail, Map, Settings, Hibernation
+    ├── components/           FavoriteButton, MonthDayPicker, settings/ (6 composants)
+    └── theme/                Color (tokens dark+light), Dimens, Theme, ScoreColors
 ```
 
 ---
@@ -87,164 +73,137 @@ src/
 Open-Meteo API
     │
     ▼
-openMeteo.ts::getCachedForecast(lat, lon)
-    Cache 1h en mémoire, déduplication des requêtes en vol
+OpenMeteoClient.getCachedForecast(lat, lon)
+    Cache 1h en mémoire, déduplication des requêtes en vol (attente hors mutex)
     │
     ▼
-weatherLogic.ts::buildForecast(hourly)
+WeatherLogic.buildForecast(hourly)
     Transforme la réponse brute en WeatherForecast (slots horaires)
     │
     ▼
-weatherLogic.ts::getSubSectorSummary(forecast, orientation, rockType, horizonHours=72)
+WeatherLogic.getSubSectorSummary(forecast, orientation, rockType, horizonHours=72)
     Re-score chaque créneau de jour (7h–20h) avec le correctif d'orientation
     et la fenêtre de pluie récente propre au rockType
-    Retourne { score: 'good'|'ok'|'bad', numericScore, nextGoodWindow }
+    Retourne SubSectorSummary(score GOOD|OK|BAD, numericScore, nextGoodWindow)
     │
     ├──► SectorDetailScreen — badge par sous-secteur + prochain créneau
-    ├──► MapScreen — couleur du pin (good=teal, ok=orange, bad=rouge)
-    └──► notificationService — détection transition !good → good → notif
+    ├──► MapScreen — couleur du pin (gradient sur le meilleur score)
+    └──► WeatherNotifier — détection transition !good → good → notif
 ```
 
 ---
 
 ## Algorithme de score météo
 
-Fichier : `src/utils/weatherLogic.ts`
+Fichier : `domain/WeatherLogic.kt` — port 1:1 de la v1.3, verrouillé par les tests.
 
 **Modèle additif pondéré.** Chaque créneau horaire part d'un score `BASE` (6) sur
 une échelle [0, 10], puis accumule bonus/malus. Tous les coefficients sont
-centralisés dans la constante `SCORE_WEIGHTS` — c'est le **seul** point de
-recalibrage, jamais de valeur en dur dans la logique.
+centralisés dans `ScoreWeights` — c'est le **seul** point de recalibrage, jamais
+de valeur en dur dans la logique.
 
 Facteurs appliqués :
 
-1. **Précipitations actives** (> 0.5 mm/h) → malus proportionnel (`PRECIP_ACTIVE_PER_MM`).
-   Sinon, un malus/bonus **WMO** mutuellement exclusif (orage / neige / pluie forte / ciel clair).
+1. **Précipitations actives** (> 0.5 mm/h) → malus proportionnel. Sinon, un
+   malus/bonus **WMO** mutuellement exclusif (orage / neige / pluie forte / ciel clair).
 2. **Probabilité de pluie** ≥ 70% → malus fort ; ≥ 40% → malus modéré.
-3. **Température effective** sous le seuil `MIN_TEMP` (= 2°C, + correctif d'orientation) →
-   malus par degré, **faible** (0.5/°C) : le froid sec ne gêne pas la grimpe (bonne friction),
-   on ne pénalise que près de 0°C.
+3. **Température effective** sous le seuil `MIN_TEMP` (= 2°C, + correctif
+   d'orientation) → malus par degré, **faible** (0.5/°C) : le froid sec ne gêne
+   pas la grimpe (bonne friction).
 4. **Vent fort** (> 60 km/h) → malus (inconfort / sécurité).
-5. **Pluie récente** × **exposition au vent** : cumul de pluie sur 6h (`fast`) ou 24h
-   (`slow`) pondéré par l'exposition de la paroi. La **sévérité dépend de la roche** :
-   `fast` (granite, sèche vite) = pénalité douce ; `slow` (calcaire friable) = pénalité
-   sévère. Vent de face fort → séchage actif → malus annulé.
+5. **Pluie récente** × **exposition au vent** : cumul sur 6h (`FAST`) ou 24h
+   (`SLOW`), sévérité selon la roche (granite doux, calcaire sévère). Vent de
+   face fort → séchage actif → malus annulé.
 
-Le score numérique est ensuite dérivé en `WeatherScore` :
-`>= THRESHOLD_GOOD` (6.0) → `good`, `>= THRESHOLD_OK` (4.0) → `ok`, sinon `bad`.
-
-`getSubSectorSummary` retient le **meilleur** score numérique sur l'horizon (72h par
-défaut, créneaux de jour 7h–20h) et calcule la première fenêtre de `good` consécutifs.
+Score numérique → `WeatherScore` : ≥ 6.0 `GOOD`, ≥ 4.0 `OK`, sinon `BAD`.
 
 **Correctif orientation (appliqué au *seuil* `MIN_TEMP`, pas à la température) :**
-N +4°C, NE +3°C, NW +2°C, E/W ±0, SE −1°C, S/SW −2°C — une face N est donc plus exigeante.
+N +4°C, NE +3°C, NW +2°C, E/W ±0, SE −1°C, S/SW −2°C.
 
-**Exposition vent :** `exposed` (±60°) / `side` (60–120°) / `sheltered` (>120°). Une face
-exposée + vent ≥ 15 km/h annule le malus de pluie récente (séchage actif).
+**Exposition vent :** `exposed` (±60°) / `side` (60–120°) / `sheltered` (>120°).
+Face exposée + vent ≥ 15 km/h annule le malus de pluie récente.
 
-> Choix de calibration assumé : `BASE = 6` == `THRESHOLD_GOOD = 6.0`, donc un créneau
-> neutre (sec, couvert) est `good` d'emblée — le modèle est volontairement optimiste
-> (« good = grimpable »), la dégradation vient des malus (pluie, proba, roche humide).
+> Choix de calibration assumé : `BASE = 6` == `THRESHOLD_GOOD = 6.0` — un créneau
+> neutre (sec, couvert) est `GOOD` d'emblée, la dégradation vient des malus.
 
 ---
 
-## Stores Zustand
+## Persistance (DataStore)
 
-| Store | Clé AsyncStorage | Contenu |
+| Repository | Fichier | Contenu |
 |---|---|---|
-| `useSectorsStore` | `sectors-store` | `favoriteIds: string[]` |
-| `useSettingsStore` | `settings-store` | notifications, intervalles, saison, thème |
-| `useNotificationStore` | `notification-store` | `lastScores: Record<sectorId:orientation, score>` |
+| `SettingsRepository` | `settings.preferences_pb` | notifications, intervalle, saison, thème, digest, override |
+| `SectorsRepository` | `sectors.preferences_pb` | `favoriteIds` (string jointe, ordre préservé) |
+| `NotificationRepository` | `notifications.preferences_pb` | `lastScores` (JSON), dédup digest (contenu + date) |
 
-Les stores sont réhydratés explicitement dans `notificationService.ts` (contexte headless) via `persist.rehydrate()`.
+Mêmes champs et défauts que les stores Zustand v1.3. Pas de rehydration manuelle :
+les Flows DataStore sont lisibles depuis n'importe quel contexte (worker, receiver).
 
 ---
 
 ## Navigation
 
 ```
-Stack (RootStack)
-  ├── Tabs (HibernationScreen si hors-saison et hibernation activée)
-  │   ├── SectorList
-  │   ├── Map
-  │   └── Settings
-  └── SectorDetail  (params: { sectorId: string })
+AppRoot (gate : HibernationScreen si hors-saison estivale et hibernation activée)
+  └── NavHost
+      ├── sectors    SectorListScreen (onglet)
+      ├── map        MapScreen (onglet)
+      ├── settings   SettingsScreen (onglet)
+      └── sector/{sectorId}   SectorDetailScreen (top bar : retour + favori)
 ```
 
 ---
 
-## Notifications
+## Notifications & background
 
-Flux background (react-native-background-fetch), routé par `taskId` :
+1. **`AlmostBlueApp`** observe le Flow settings (`distinctUntilChanged` sur
+   intervalle / toggles / heure du digest) : chaque changement — et la première
+   émission au démarrage — re-planifie le `CheckWorker` et l'alarme du digest,
+   puis lance un check différé de 4 s (verrou anti-concurrence, non annulable
+   une fois parti). Équivalent exact du `useNotificationSetup` v1.3.
+2. **`CheckWorker`** (WorkManager, périodique, réseau requis) : gardes saison/été,
+   compare les scores aux `lastScores`, notifie les transitions `!good → good`
+   par secteur favori, persiste, et **ré-arme le digest** (auto-réparation si
+   l'alarme a été perdue).
+3. **`DigestReceiver`** : tiré par `setExactAndAllowWhileIdle` à l'heure configurée
+   (défaut 10h00) — part à l'heure pile même en Doze. Anti-doublon par jour
+   calendaire (Europe/Paris) et par contenu identique. Ré-arme le lendemain.
+4. **`BootReceiver`** : re-planifie la chaîne au redémarrage du device.
+5. **Fiabilité** (`Reliability.kt`) : statut exemption batterie / alarmes exactes /
+   gestionnaire OEM (liste notifee portée, sans `<queries>` — inopérante sur
+   Android 11+, comme en v1.3). Invite système unique au premier lancement,
+   section « Fiabilité » dans les réglages avec routage vers les écrans système.
 
-1. `index.js` enregistre la tâche headless (exécutée app fermée). Le `taskId`
-   distingue le **digest** (`DIGEST_TASK_ID`) des **checks météo** classiques.
-2. `useNotificationSetup.ts` (au démarrage) : crée le canal, demande la permission,
-   configure l'intervalle (**180 min / 3h par défaut**), planifie le digest, et propose
-   une fois l'invite de fiabilité (exemption batterie).
-3. `notificationService.ts::checkAndNotify()` :
-   - Réhydrate les stores (`Promise.allSettled`)
-   - Vérifie saison + paramètres
-   - Pour chaque secteur favori : calcule les scores par orientation, compare aux `lastScores`
-   - Envoie une notif si une orientation passe de !good → good
-   - Persiste les nouveaux scores
-
-**Digest quotidien** (`sendDailyDigest` + `scheduleNextDigest`) : résumé des favoris
-sur 7 jours, tiré à l'heure configurée (`digestHour`) via **AlarmManager exact**
-(`forceAlarmManager`) pour partir à l'heure pile même en Doze. Anti-doublon par jour
-calendaire (Europe/Paris) et par contenu identique. La planification est
-auto-réparante : ré-armée à chaque check et au boot (`startOnBoot`).
-
-**Fiabilité** (`utils/notificationReliability.ts` + module natif Kotlin
-`BatteryOptimizationModule`) : lit l'état Doze / alarmes exactes / gestionnaire OEM et
-route vers les écrans système. La popup d'exemption batterie est une vraie boîte de
-dialogue système (intent `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`).
+Validation grandeur nature (2026-07-04, Samsung A52 / Android 14) : digest tiré
+à 21:00:00 pile app en arrière-plan, textes FR conformes, ré-armement vérifié.
 
 ---
 
 ## Tests
 
 ```
-__tests__/
-├── App.test.tsx                       Smoke test : rendu sans crash
-├── __mocks__/                         Mocks natifs (maplibre, notifee, async-storage,
-│                                      background-fetch, @env)
-├── services/
-│   ├── openMeteo.test.ts              Cache 1h + déduplication des requêtes
-│   └── notificationService.test.ts    Digest, transitions, formatNextWindow
-├── stores/
-│   ├── useSectorsStore.test.ts        isFavorite, toggleFavorite
-│   ├── useSettingsStore.test.ts       Réglages + reset
-│   └── useNotificationStore.test.ts   lastScores, digest
-└── utils/
-    ├── colorUtils.test.ts
-    ├── orientationUtils.test.ts
-    ├── seasonLogic.test.ts            isOffSeason, nextSeasonChangeDate
-    └── weatherLogic.test.ts           buildForecast, getSubSectorSummary
+app/src/test/java/com/almostblue/
+├── domain/          weatherLogic (48), seasonLogic (24), colorUtils (7), orientationUtils (3)
+├── data/            OpenMeteoClient (cache/dédup, 8), repositories (16), Sectors (unicité)
+└── notifications/   messages FR, transitions, digest, scheduler (41)
 ```
 
-10 suites, **217 tests** au vert. Commande : `npm test`
+**151 tests** au vert, re-dérivés des 217 tests Jest v1.3 (les tests de rendu RN
+n'ont pas d'équivalent). Commande : `./gradlew test`
 
 ---
 
-## Variables d'environnement
+## Configuration
 
-| Variable | Fichier `.env` | Usage |
-|---|---|---|
-| `OPEN_METEO_API_BASE_URL` | `https://api.open-meteo.com` | Base URL de l'API météo |
-
-Copier `.env.example` → `.env`. Ne jamais committer `.env`.
+Pas de `.env` : `OPEN_METEO_BASE_URL` est un `buildConfigField` (non secret) dans
+`app/build.gradle.kts`.
 
 ---
 
 ## Intégration continue (CI)
 
-GitHub Actions — `.github/workflows/ci.yml`, déclenchée sur push `main` et pull requests :
-
-- **checks** : `npm ci` → `tsc --noEmit` → `eslint` → `jest`.
-- **android** : build `assembleDebug` (signé avec le `debug.keystore` versionné, sans secret).
-
-Aucun secret n'est requis : la CI ne fait pas de build *release* signé.
+GitHub Actions — `.github/workflows/ci.yml` : `./gradlew test lint assembleDebug`.
+Aucun secret requis : la CI ne fait pas de build release signé (fallback keystore debug).
 
 ---
 
@@ -254,36 +213,26 @@ Le build **release** est signé avec un keystore dédié, conservé **hors dép�
 
 | Fichier | Rôle | Suivi par git ? |
 |---|---|---|
-| `android/app/almost-blue-release.keystore` | Clé de signature (ECDSA secp256r1) | ❌ ignoré |
-| `android/keystore.properties` | Chemin du keystore + mots de passe | ❌ ignoré |
-| `android/app/debug.keystore` | Clé debug publique (partagée) | ✅ versionné |
+| `app/almost-blue-release.keystore` | Clé de signature (ECDSA secp256r1) | ❌ ignoré |
+| `keystore.properties` (racine) | Chemin du keystore + mots de passe | ❌ ignoré |
+| `app/debug.keystore` | Clé debug publique (partagée) | ✅ versionné |
 
-`android/app/build.gradle` lit `keystore.properties` s'il existe, sinon retombe sur le
-keystore debug (dev uniquement).
+`app/build.gradle.kts` lit `keystore.properties` s'il existe, sinon retombe sur le
+keystore debug (dev/CI uniquement). **Même keystore que la v1.3 RN** → la v2.0
+s'installe en mise à jour par-dessus.
 
-**Régénérer le keystore** (pour référence — déjà généré) :
-
-```bash
-keytool -genkeypair -v \
-  -keystore android/app/almost-blue-release.keystore \
-  -alias almost-blue -keyalg EC -groupname secp256r1 -validity 10000 \
-  -dname "CN=Almost Blue, OU=Dev, O=Almost Blue, L=Brest, ST=Bretagne, C=FR"
-# puis : cp android/keystore.properties.example android/keystore.properties
-# et renseigner storePassword / keyPassword.
-```
+Release : R8/minify + shrinkResources, ABI `arm64-v8a` uniquement (device perso —
+élargir `ndk.abiFilters` au besoin). Le build **debug** porte le suffixe
+d'applicationId `.next` pour coexister avec la release installée.
 
 **Construire un APK signé (distribution) :**
 
 ```bash
-./scripts/build-release.sh
+./build-release.sh
 # → dist/almost-blue-v<versionName>.apk   (dist/ est gitignoré)
 ```
 
-Le script lit `versionName` dans `android/app/build.gradle`, lance `assembleRelease` et
-copie l'APK signé dans `dist/` sous un nom versionné. Équivalent manuel :
-`cd android && ./gradlew assembleRelease` → `android/app/build/outputs/apk/release/app-release.apk`.
-
-> ⚠️ **SAUVEGARDE CRITIQUE.** Le keystore et son mot de passe ne sont **que** sur la machine
-> de dev (gitignorés). Sauvegarde-les (password manager + copie hors ligne du `.keystore`).
-> Une fois l'app publiée, **toute mise à jour doit être signée avec le même keystore** — le
-> perdre = ne plus pouvoir mettre à jour l'app. Tant que rien n'est publié, il reste régénérable.
+> ⚠️ **SAUVEGARDE CRITIQUE.** Le keystore et son mot de passe ne sont **que** sur la
+> machine de dev (gitignorés). Sauvegarde-les (password manager + copie hors ligne).
+> Toute mise à jour doit être signée avec le même keystore — le perdre = réinstaller
+> l'app de zéro sur chaque device.

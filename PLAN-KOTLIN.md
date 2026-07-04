@@ -9,8 +9,11 @@
 
 ## État courant
 
-- **Jalon en cours : M4 — code terminé et validé sur device (2026-07-04) ; M3 validé grandeur nature** (M0-M3 finis ; **151 tests verts**)
-- **Prochaine action : M5 — carte MapLibre** (SDK, raster OSM, pins, panneau glissant). Optionnel avant : parcours côte à côte v1.3 ↔ v2 par l'utilisateur (DoD formel M4) — les écrans ont déjà été validés un à un contre la spec par screenshots.
+- **Jalon en cours : M6 — code terminé (M0-M5 finis ; 151 tests verts ; release R8 signée 13,4 Mo)**
+- **Prochaine action : validation device par l'utilisateur, puis bascule** —
+  ① rebrancher le A52 : valider la carte M5 (pins colorés, panneau, « Voir le détail ») ;
+  ② installer `dist/almost-blue-v2.0.apk` **par-dessus la v1.3** (même keystore) et dérouler la checklist parité (notifs, digest à l'heure, hibernation, reboot, Doze) ;
+  ③ après feu vert : supprimer `spec/`, retirer le suffixe `.next` du debug, merger → `main`, mesurer cold start vs v1.3.
 
 ## Cadre (validé utilisateur, 2026-07-03)
 
@@ -78,19 +81,22 @@ MapLibre Android SDK, JUnit. R8/minify : désactivé jusqu'à M6.
 - [ ] (Optionnel, utilisateur) Parcours côte à côte avec la v1.3 installée
 - **DoD** : atteint hors parcours côte à côte formel.
 
-### M5 — Carte MapLibre + panneau
-- [ ] SDK MapLibre, raster OSM, caméra France (2.3, 46.5, z5)
-- [ ] Pins 18dp bord blanc, couleur gradient max sous-secteurs, fetch parallèle tolérant
-- [ ] Sheet parité : 460dp fixe, spring ouverture / timing 220ms fermeture, overlay 40 %, « Voir le détail → »
-- **DoD** : device vs v1.3.
+### M5 — Carte MapLibre + panneau — code ✅ (2026-07-04), device ⏳
+- [x] SDK MapLibre 11.11 + plugin annotations, raster OSM, caméra France (2.3, 46.5, z5)
+- [x] Pins CircleManager 18dp bord blanc 2.5, couleur gradient max sous-secteurs, fetch parallèle tolérant (supervisorScope, une seule mise à jour d'état)
+- [x] Sheet parité : 460dp fixe, spring ouverture (approx. Compose du bounciness=4) / timing 220ms fermeture, overlay 40 %, « Voir le détail → » (id capturé avant fermeture)
+- [ ] **Validation device** (téléphone débranché pendant le dev) — vérifier aussi que la caméra revient sur la France à chaque retour sur l'onglet (le MapView est recréé au changement d'onglet, léger écart vs RN qui gardait l'écran monté)
+- **DoD** : device vs v1.3 ⏳.
 
-### M6 — Finition, release, bascule
-- [ ] R8/minify + test complet ; icônes placeholder ; retrait `.next`
-- [ ] `build-release.sh` recréé (assembleRelease → dist/almost-blue-v2.0.apk)
+### M6 — Finition, release, bascule — code ✅ (2026-07-04), bascule ⏳
+- [x] R8/minify + shrinkResources + règles keep serialization ; `assembleRelease` OK
+- [x] ABI release : `arm64-v8a` seule (libs natives MapLibre ×4 sinon) — élargir au besoin
+- [x] Icônes générées depuis `almost-blue-icon-master-v2.png` (nuage) : mipmaps 48→192 + variantes rondes
+- [x] `build-release.sh` recréé → `dist/almost-blue-v2.0.apk` **13,4 Mo** signé (certificat vérifié = keystore v1.3, mise à jour par-dessus possible)
+- [x] Docs réécrites : CLAUDE.md / README / CONTEXT / TECHNICAL (Kotlin v2.0)
 - [ ] Checklist parité device (hibernation, été, reboot→digest, Doze) validée par l'utilisateur
-- [ ] Docs réécrites (CLAUDE.md/README/CONTEXT/TECHNICAL), suppression `spec/`, mémoires à jour
-- [ ] Merge → main ; mesure APK + cold start vs v1.3
-- **DoD** : APK release installé en mise à jour par-dessus la v1.3.
+- [ ] Après feu vert : suppression `spec/`, retrait `.next` (debug), mémoires à jour, merge → main, mesure cold start
+- **DoD** : APK release installé en mise à jour par-dessus la v1.3 ⏳.
 
 ## Notes de chantier
 
