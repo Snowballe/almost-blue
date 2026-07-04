@@ -58,9 +58,17 @@ android {
             applicationIdSuffix = ".next"
         }
         release {
-            // R8/minify sera activé en M6, après validation de la parité.
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = signingConfigs.getByName("release")
+            // Distribution perso (A52, arm64) : on n'embarque qu'une ABI pour
+            // ne pas tripler le poids avec les libs natives MapLibre.
+            // Élargir (armeabi-v7a…) si l'APK doit tourner ailleurs.
+            ndk { abiFilters += "arm64-v8a" }
         }
     }
 
