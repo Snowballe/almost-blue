@@ -9,8 +9,8 @@
 
 ## État courant
 
-- **Jalon en cours : M3 — code terminé, validation device en attente** (M0-M2 finis ; **151 tests verts**)
-- **Prochaine action : validation utilisateur M3** — déverrouiller le A52, ouvrir AlmostBlue (.next), taper les 4 boutons dans l'ordre (① favori Buoux, ② notif test, ③ check forcé, ④ digest forcé) et confirmer que les notifications apparaissent avec les bons textes FR. Puis attendre le digest de demain 10h00 (alarme exacte déjà armée, vérifiée par dumpsys). Ensuite → M4 (UI Compose).
+- **Jalon en cours : M4 — code terminé et validé sur device (2026-07-04) ; M3 validé grandeur nature** (M0-M3 finis ; **151 tests verts**)
+- **Prochaine action : M5 — carte MapLibre** (SDK, raster OSM, pins, panneau glissant). Optionnel avant : parcours côte à côte v1.3 ↔ v2 par l'utilisateur (DoD formel M4) — les écrans ont déjà été validés un à un contre la spec par screenshots.
 
 ## Cadre (validé utilisateur, 2026-07-03)
 
@@ -60,14 +60,23 @@ MapLibre Android SDK, JUnit. R8/minify : désactivé jusqu'à M6.
 - [x] Fiabilité native : `isIgnoringBatteryOptimizations`, `canScheduleExactAlarms`, intents réglages ; permissions manifest complètes. ⚠️ Simplification assumée : pas de détection du power manager OEM (`needsPowerManager` notifee) — à trancher en M4 avec la ReliabilitySection (3e FixRow « Démarrage automatique »)
 - [x] Port des 40 tests (41 avec le scheduler) — 151 tests verts au total
 - [x] Vérifié par dumpsys : alarme exacte armée (`window=0`, demain 10h, `policy_permission`) + job WorkManager enregistré
-- [ ] **Validation utilisateur** : boutons ①→④ du placeholder (textes FR corrects) + digest de demain 10h app fermée
-- **DoD** : tests verts ✅ + validation device ⏳.
+- [x] **Validation grandeur nature (2026-07-04, adb + réglages injectés via run-as)** :
+  alerte réelle « Falaise de Buoux — grimpable demain » / « Toutes les faces sont
+  sèches ! » (check immédiat, vraie requête Open-Meteo) ; **digest tiré à 21:00:00
+  pile par la vraie chaîne AlarmManager exact → DigestReceiver, app en arrière-plan**
+  (« Résumé grimpe · 04/07 » / « … grimpable dans son ensemble (dès demain) ») ;
+  ré-armement auto vérifié (lendemain même heure, puis 10h00 après retour aux
+  défauts) ; gardes anti-doublon persistées ; notif de test OK ; CheckWorker SUCCESS.
+- **DoD atteint** : tests verts ✅ + validation device ✅.
 
-### M4 — UI Compose (hors carte)
-- [ ] Navigation bottom bar (Secteurs/Carte/Réglages) + détail + gate hibernation (reset auto override)
-- [ ] SectorList (Favoris/Tous, méta, étoile), SectorDetail (badge gradient + Sec/Incertain/Humide + n.n/10, fenêtre, retry), Hibernation (🌙, date retour, « Voir quand même »), Settings complet (toggles, chips 1h-24h, HourSelector ±, MonthDayPicker 2 colonnes, ReliabilitySection, Debug ×4, À propos)
-- [ ] Thème clair/sombre sans flash
-- **DoD** : parcours device côte à côte avec v1.3.
+### M4 — UI Compose (hors carte) — code ✅, validé sur device (2026-07-04)
+- [x] Navigation bottom bar (Secteurs/Carte/Réglages) + détail + gate hibernation (reset auto override)
+- [x] SectorList (Favoris/Tous, méta, étoile), SectorDetail (badge gradient + Sec/Incertain/Humide + n.n/10, fenêtre, retry), Hibernation (🌙, date retour, « Voir quand même »), Settings complet (toggles, chips 1h-24h, HourSelector ±, MonthDayPicker 2 colonnes, ReliabilitySection, Debug ×4, À propos)
+- [x] Thème clair/sombre sans flash (bascule instantanée vérifiée sur device)
+- [x] Câblage réactif parité useNotificationSetup : re-planification sur changement de réglages, check immédiat 4 s avec verrou, invite fiabilité unique (`reliabilityPromptDone`)
+- [x] Validé écran par écran contre la spec, par screenshots sur le A52 (liste, détail, hibernation + override, réglages complets, picker, thème clair)
+- [ ] (Optionnel, utilisateur) Parcours côte à côte avec la v1.3 installée
+- **DoD** : atteint hors parcours côte à côte formel.
 
 ### M5 — Carte MapLibre + panneau
 - [ ] SDK MapLibre, raster OSM, caméra France (2.3, 46.5, z5)
@@ -86,5 +95,21 @@ MapLibre Android SDK, JUnit. R8/minify : désactivé jusqu'à M6.
 ## Notes de chantier
 
 - `scoreSlotBase` : compromis assumé slow×6h (roche inconnue), sans consommateur UI — sert de référence de calibration des tests. Ne pas « corriger ».
+- **needsPowerManager tranché (M4)** : port fidèle de la liste OEM de notifee
+  (PowerManagerUtils) SANS `<queries>` manifest, comme la v1.3 — sur Android 11+
+  la résolution échoue par visibilité des packages, la FixRow « Démarrage
+  automatique » n'apparaît donc que sur les vieux appareils. Parité stricte,
+  ne pas « corriger » avant la bascule.
+- **IDs de notification (à revoir à M6)** : `nextAlertId` repart à 100 à chaque
+  process → une alerte peut en remplacer une autre après redémarrage ;
+  `sendTestNotification` instancie son propre `AndroidNotifier` → la notif de
+  test (id 100) écrase la première alerte du process courant. Sans gravité,
+  mais comparer au comportement notifee v1.3 avant release.
+- **Debug sur device** : le shell adb (uid 2000) ne peut PAS broadcaster vers un
+  receiver non exporté (Android 14) — pour déclencher le digest hors UI, passer
+  par l'alarme réelle (injecter `digestHour` via `run-as` + protobuf DataStore,
+  cf. validation M3) ou par les boutons Debug des réglages.
+- L'override d'hibernation a été consommé pendant la validation (2026-07-04) :
+  l'app montre la liste jusqu'au prochain cycle saisonnier — comportement v1.3.
 - `spec/` est en lecture seule : ne jamais y toucher, il reflète main v1.3.
 - APK debug M0 : 9,2 Mo (vs ~25 Mo RN) — re-mesurer en release minifié à M6.
