@@ -9,11 +9,15 @@
 
 ## État courant
 
-- **Jalon en cours : M6 — code terminé (M0-M5 finis ; 151 tests verts ; release R8 signée 13,4 Mo)**
-- **Prochaine action : validation device par l'utilisateur, puis bascule** —
-  ① rebrancher le A52 : valider la carte M5 (pins colorés, panneau, « Voir le détail ») ;
-  ② installer `dist/almost-blue-v2.0.apk` **par-dessus la v1.3** (même keystore) et dérouler la checklist parité (notifs, digest à l'heure, hibernation, reboot, Doze) ;
-  ③ après feu vert : supprimer `spec/`, retirer le suffixe `.next` du debug, merger → `main`, mesurer cold start vs v1.3.
+- **CHANTIER TERMINÉ (2026-07-05) — bascule effectuée.** M0-M6 finis, 151 tests
+  verts, v2.0 release (13,4 Mo) installée en mise à jour par-dessus la v1.3 sur
+  le A52, `spec/` supprimé, `.next` retiré et désinstallé, mergé → `main`.
+- **Restes connus (non bloquants)** : test reboot→digest (BootReceiver) à observer
+  à l'occasion d'un vrai redémarrage ; comportement Doze à observer sur quelques
+  jours ; favoris v1.3 non migrés (stockage RN AsyncStorage ≠ DataStore — à
+  ré-étoiler à la main) ; IDs de notification (cf. Notes de chantier).
+- Ce document est conservé comme journal du chantier ; la doc vivante est
+  CLAUDE.md / README / CONTEXT / TECHNICAL.
 
 ## Cadre (validé utilisateur, 2026-07-03)
 
@@ -85,8 +89,8 @@ MapLibre Android SDK, JUnit. R8/minify : désactivé jusqu'à M6.
 - [x] SDK MapLibre 11.11 + plugin annotations, raster OSM, caméra France (2.3, 46.5, z5)
 - [x] Pins CircleManager 18dp bord blanc 2.5, couleur gradient max sous-secteurs, fetch parallèle tolérant (supervisorScope, une seule mise à jour d'état)
 - [x] Sheet parité : 460dp fixe, spring ouverture (approx. Compose du bounciness=4) / timing 220ms fermeture, overlay 40 %, « Voir le détail → » (id capturé avant fermeture)
-- [ ] **Validation device** (téléphone débranché pendant le dev) — vérifier aussi que la caméra revient sur la France à chaque retour sur l'onglet (le MapView est recréé au changement d'onglet, léger écart vs RN qui gardait l'écran monté)
-- **DoD** : device vs v1.3 ⏳.
+- [x] **Validation device (2026-07-05)** : tuiles OSM, caméra France, pins colorés par gradient (repli accent si fetch échoué, re-fetch au remontage — parité), sheet + ★ + « Voir le détail → » → écran détail. Caméra recadrée France à chaque retour d'onglet (MapView recréé, léger écart vs RN — assumé)
+- **DoD atteint**.
 
 ### M6 — Finition, release, bascule — code ✅ (2026-07-04), bascule ⏳
 - [x] R8/minify + shrinkResources + règles keep serialization ; `assembleRelease` OK
@@ -94,9 +98,13 @@ MapLibre Android SDK, JUnit. R8/minify : désactivé jusqu'à M6.
 - [x] Icônes générées depuis `almost-blue-icon-master-v2.png` (nuage) : mipmaps 48→192 + variantes rondes
 - [x] `build-release.sh` recréé → `dist/almost-blue-v2.0.apk` **13,4 Mo** signé (certificat vérifié = keystore v1.3, mise à jour par-dessus possible)
 - [x] Docs réécrites : CLAUDE.md / README / CONTEXT / TECHNICAL (Kotlin v2.0)
-- [ ] Checklist parité device (hibernation, été, reboot→digest, Doze) validée par l'utilisateur
-- [ ] Après feu vert : suppression `spec/`, retrait `.next` (debug), mémoires à jour, merge → main, mesure cold start
-- **DoD** : APK release installé en mise à jour par-dessus la v1.3 ⏳.
+- [x] **v2.0 release installée en mise à jour par-dessus la v1.3 (2026-07-05)** — signature acceptée, aucune désinstallation
+- [x] Release R8 validée sur device : hibernation + override, liste, détail (serialization OK sur données live), carte MapLibre, alarme digest armée 10h00
+- [x] Cold start : v1.3 RN 420 ms (premier frame, bundle JS ensuite) vs v2.0 R8 459 ms (app complète au premier frame)
+- [x] Suppression `spec/`, retrait `.next`, docs nettoyées
+- [x] Digest quotidien réel de la release (cycle auto-entretenu, non forcé) — tiré à 10h00 ⏳→ voir « État courant »
+- [ ] Reste (utilisateur) : test reboot→digest (BootReceiver — non testable par adb sans re-saisie du PIN) et observation Doze sur plusieurs jours
+- **DoD** : APK release installé en mise à jour par-dessus la v1.3 ✅.
 
 ## Notes de chantier
 
