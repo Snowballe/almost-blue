@@ -1,131 +1,110 @@
 # Almost Blue — CLAUDE.md
 
-Application React Native qui alerte les grimpeurs outdoor quand une fenêtre météo favorable s'ouvre sur leurs secteurs d'escalade suivis, hors saison estivale.
+Application Android native qui alerte les grimpeurs outdoor quand une fenêtre
+météo favorable s'ouvre sur leurs secteurs d'escalade suivis, hors saison estivale.
 
 ## Stack
 
 | Couche | Choix |
 |---|---|
-| Framework | React Native 0.82 + TypeScript |
-| Cibles | Android (iOS abandonné — pas de Mac ; Web éventuel) |
-| État | Zustand (persist AsyncStorage) |
-| Navigation | React Navigation (native-stack + bottom-tabs) |
-| HTTP | axios |
-| Carte | @maplibre/maplibre-react-native + tuiles OSM (sans clé) |
-| Panneau carte | Animated RN custom (pas de lib externe) |
-| Animations | react-native-reanimated (dep transitive) |
-| Gestes | react-native-gesture-handler (dep transitive) |
-| Météo | Open-Meteo (gratuit, sans clé) |
-| Notifications | @notifee/react-native (canal + digest) |
-| Tâches fond | react-native-background-fetch (headless + AlarmManager exact) |
+| Langage | Kotlin 2.1 (AGP 8.12, Gradle 8.13, minSdk 24 → target 36) |
+| UI | Jetpack Compose + Material3 — tokens custom via `AppTheme.colors` |
+| Navigation | navigation-compose (3 onglets + détail), gate hibernation dans `AppRoot` |
+| Persistance | DataStore Preferences (3 stores : settings / sectors / notifications) |
+| HTTP | OkHttp + kotlinx.serialization |
+| Météo | Open-Meteo (gratuit, sans clé) — base URL en `BuildConfig` |
+| Carte | MapLibre Android + plugin annotations, tuiles raster OSM (sans clé) |
+| Tâches fond | WorkManager (check périodique) + AlarmManager exact (digest) + BootReceiver |
+| Notifications | NotificationManager natif, canal `weather-alerts` HIGH |
+| Tests | JUnit — domaine + data + notifications (151 tests) |
+| Release | R8/minify + shrinkResources, ABI `arm64-v8a` seule (device perso) |
 
 ## Palette — dark crépusculaire (référence : Chet Baker, "Almost Blue")
 
-| Token | Hex | Usage |
-|---|---|---|
-| background | `#0D0F14` | fond principal |
-| surface | `#161B26` | cartes, listes |
-| surfaceHigh | `#1E2535` | éléments surélevés |
-| border | `#2A3347` | séparateurs |
-| accent | `#4D7EFF` | actions, pins carte |
-| textPrimary | `#E8EAF0` | texte principal |
-| textMuted | `#7B85A0` | texte secondaire |
-| good | `#5EEAD4` | rocher sec |
-| warning | `#F59E0B` | incertain |
-| danger | `#EF4444` | humide / tempête |
+Tokens dans `ui/theme/Color.kt` (`DarkColors`/`LightColors`) :
+background `#0D0F14` · surface `#161B26` · surfaceHigh `#1E2535` · border `#2A3347`
+· accent `#4D7EFF` · textPrimary `#E8EAF0` · textMuted `#7B85A0` · good `#5EEAD4`
+· warning `#F59E0B` · danger `#EF4444`. Ne jamais hardcoder une couleur dans un
+écran : toujours `AppTheme.colors`.
 
-## Architecture données
+## Architecture
 
-**Secteurs hardcodés** dans `src/data/sectors.ts` — pas d'API secteurs, pas d'UI d'ajout.  
-Les topos sont saisis à la main directement dans le code.
-
-```typescript
-Sector { id, name, latitude, longitude, altitude?, notes?, subSectors[] }
-SubSector { id, name, orientation, rockType: 'fast' | 'slow', notes? }
+```
+com.almostblue
+├── AlmostBlueApp      — re-planification réactive (Flow settings → WorkManager/alarme + check 4s)
+├── AppGraph           — DI minimaliste (singleton, pas de framework)
+├── domain/            — logique pure, sans Android : WeatherLogic, SeasonLogic, OrientationUtils…
+├── data/              — Sectors.kt (hardcodé), OpenMeteoClient (cache 1h + dédup), 3 repositories DataStore
+├── notifications/     — WeatherNotifier (transitions, digest), messages FR, Reliability (Doze/alarmes/OEM)
+├── background/        — CheckWorker, DigestReceiver, BootReceiver
+└── ui/                — AppRoot (nav + gate), screens/, components/, theme/
 ```
 
-`rockType` est **requis** : `fast` (granite/grès, sèche en quelques heures) vs
-`slow` (calcaire/conglomérat, peut suinter 24h+). Il pilote la fenêtre de pluie
-récente prise en compte (6h vs 24h).
+**Secteurs hardcodés** dans `data/Sectors.kt` — pas d'API secteurs, pas d'UI d'ajout.
+
+```kotlin
+Sector(id, name, latitude, longitude, altitude?, notes?, subSectors)
+SubSector(id, name, orientation, rockType /* FAST | SLOW */, notes?)
+```
+
+`rockType` est **requis** : `FAST` (granite/grès, sèche en quelques heures) vs
+`SLOW` (calcaire/conglomérat, peut suinter 24h+). Il pilote la fenêtre de pluie
+récente (6h vs 24h) et la sévérité du malus.
 
 - Un sous-secteur hérite du GPS du secteur parent (un seul appel météo par secteur).
-- L'orientation appartient au sous-secteur (même falaise = même orientation).
-- Pour un grand site avec expositions multiples → créer deux `Sector` distincts.
+- L'orientation appartient au sous-secteur ; grand site multi-expositions → deux `Sector`.
+- **Favoris** : seuls les IDs sont persistés (`SectorsRepository`, ordre préservé).
 
-**Favoris** : seuls les IDs sont persistés (`src/stores/useSectorsStore.ts`).
-
-## Variables d'environnement
-
-Copier `.env.example` → `.env`. Ne jamais committer `.env`.
-
-```env
-OPEN_METEO_API_BASE_URL=https://api.open-meteo.com
-```
-
-## Commandes utiles
+## Commandes
 
 ```bash
-npm install
-npx react-native start --reset-cache   # Metro bundler
-npx react-native run-android           # Android
-npm test                               # Jest
-npm run lint                           # ESLint
-cd android && ./gradlew assembleDebug  # APK debug
+./gradlew test                 # 151 tests JUnit
+./gradlew lint                 # Android lint
+./gradlew installDebug         # APK debug
+./build-release.sh             # APK release signé → dist/almost-blue-vX.Y.apk
 ```
 
 ## Logique météo
 
-Fichier principal : `src/utils/weatherLogic.ts`
+Fichier principal : `domain/WeatherLogic.kt` — port 1:1 de la v1.3, verrouillé
+par les tests.
 
-- 1 appel Open-Meteo par secteur (lat/lng partagé entre sous-secteurs)
-- Cache en mémoire 1h + déduplication des requêtes en vol (`src/services/openMeteo.ts` → `getCachedForecast`)
-- **Modèle de score additif pondéré** : chaque créneau part de `BASE`, puis reçoit
-  bonus/malus (précipitations, codes WMO, probabilité de pluie, température, vent,
-  pluie récente × exposition). Tous les poids sont dans la constante `SCORE_WEIGHTS`
-  — recalibrer **là**, jamais en dur dans la logique.
-- Score numérique [0,10] → `WeatherScore` via seuils : `>= THRESHOLD_GOOD` (6.0) → `good`,
-  `>= THRESHOLD_OK` (4.0) → `ok`, sinon `bad`.
+- 1 appel Open-Meteo par secteur ; cache mémoire 1h + dédup en vol (`OpenMeteoClient`).
+- **Modèle additif pondéré** : chaque créneau part de `BASE` puis bonus/malus
+  (précipitations, codes WMO, proba de pluie, température, vent, pluie récente ×
+  exposition). Tous les poids dans `ScoreWeights` — recalibrer **là**, jamais inline.
+- Score [0,10] → `WeatherScore` : ≥ 6.0 `GOOD`, ≥ 4.0 `OK`, sinon `BAD`.
 - `getSubSectorSummary(forecast, orientation, rockType, horizonHours = 72)` →
-  meilleur score sur l'horizon (créneaux de jour 7h–20h) + première fenêtre `good`.
-- La pluie récente utilise une fenêtre de 6h (`fast`) ou 24h (`slow`) selon le `rockType`,
-  et une **sévérité** différente : `fast` (granite) sèche vite → pénalité douce ; `slow`
-  (calcaire friable) reste humide → pénalité sévère (prudence).
+  meilleur score (créneaux de jour 7h-20h) + première fenêtre `GOOD` contiguë.
+- **Correctif d'orientation appliqué au *seuil* `MIN_TEMP`**, pas à la température
+  lue : N +4°C, NE +3°C, NW +2°C, S -2°C, SW -2°C, SE -1°C, E/W ±0.
+- **Exposition au vent** (`exposed`/`side`/`sheltered`) : face exposée + vent
+  ≥ 15 km/h annule le malus de pluie récente (séchage actif).
 
-**Correctif d'orientation — appliqué au *seuil* `MIN_TEMP`, pas à la température lue :**
-une face N relève le seuil (plus exigeant : sèche lentement), une face S l'abaisse.
-- N +4°C, NE +3°C, NW +2°C
-- S -2°C, SW -2°C, SE -1°C
-- E/W ±0°C
+## Notifications & background
 
-**Exposition au vent** (`exposed`/`side`/`sheltered` selon l'écart paroi↔vent) :
-une face exposée + vent ≥ 15 km/h annule le malus de pluie récente (séchage actif).
-
-## Navigation
-
-```
-RootStack
-  ├── Tabs
-  │   ├── SectorList (onglet 1)
-  │   └── Map (onglet 2) — MapLibre OSM + panneau glissant Animated
-  └── SectorDetail (stack, accessible depuis les deux onglets)
-```
+- `CheckWorker` (WorkManager, intervalle des réglages, réseau requis) : gardes
+  saison/été, transitions `!good → good` sur favoris, ré-arme le digest
+  (auto-réparant).
+- `DigestReceiver` + `setExactAndAllowWhileIdle` : digest quotidien à heure
+  configurable, gardes anti-doublon (contenu + jour Paris), ré-armement après tir.
+- `AlmostBlueApp` observe le Flow settings : tout changement d'intervalle/toggle/
+  heure re-planifie, puis check différé de 4 s (verrou anti-concurrence).
+- Fiabilité : exemption batterie + alarmes exactes (`notifications/Reliability.kt`),
+  invite unique au premier lancement, section dédiée dans Réglages.
 
 ## Roadmap
 
-- **v0 → v1.3** *(livré)* : secteurs hardcodés, liste + carte (favoris), météo pondérée
-  par sous-secteur (orientation + `rockType`), notifications locales, digest quotidien
-  à heure configurable, fiabilité background (exemption batterie + alarmes exactes via
-  module natif Android), hibernation estivale. Android.
-- **À venir** : Oblyk API (recherche secteurs), personnalisation fine des seuils météo,
-  géoloc "secteurs proches", analytics opt-in.
-- **iOS : abandonné** *(2026-07)* — développer/tester/distribuer exige un Mac ou un
-  compte Apple Developer (99 $/an) ; aucun chemin gratuit depuis Linux. Le scaffold
-  `ios/` (vierge) est conservé au cas où, mais ne pas relancer ce chantier.
+- **v1.3 RN** *(remplacée)* : dernier état dans l'historique git (tag de la bascule).
+- **v2.0 Kotlin** *(livré, 2026-07)* : parité stricte v1.3, APK 13,4 Mo (vs ~25 Mo RN).
+- **À venir** : Oblyk API (recherche secteurs), personnalisation des seuils météo,
+  géoloc « secteurs proches », analytics opt-in.
+- **iOS : abandonné** *(2026-07)* — pas de Mac ni de compte Apple Developer.
 
 ## Conventions
 
-- TypeScript strict, ESLint + Prettier.
-- Pas de clés/secrets dans le code — variables d'environnement uniquement.
-- Géolocalisation opt-in uniquement (v2).
-- Langue UI : français en priorité.
-- Seuils météo dans des constantes nommées dans `weatherLogic.ts`, jamais hardcodés inline.
+- Kotlin idiomatique, pas de framework DI (AppGraph suffit).
+- Pas de clés/secrets dans le code (`keystore.properties` gitignoré, NE PAS régénérer).
+- Seuils et poids météo dans des constantes nommées (`ScoreWeights`), jamais inline.
+- Langue UI : français. Textes de notification = messages exacts v1.3.
+- Géolocalisation opt-in uniquement (v2+).
