@@ -1,11 +1,5 @@
 # Almost Blue — CLAUDE.md
 
-> 🔀 **Branche `rewrite/kotlin` — bascule v2.0 en cours de finalisation.**
-> L'app est réécrite en Kotlin natif (parité v1.3 atteinte, M0-M6 code terminés).
-> Reste avant merge → `main` : checklist de parité device par l'utilisateur
-> (voir `PLAN-KOTLIN.md` § M6). `spec/` (TS gelé de la v1.3) sert encore de
-> référence de parité — supprimé à la bascule.
-
 Application Android native qui alerte les grimpeurs outdoor quand une fenêtre
 météo favorable s'ouvre sur leurs secteurs d'escalade suivis, hors saison estivale.
 
@@ -66,7 +60,7 @@ récente (6h vs 24h) et la sévérité du malus.
 ```bash
 ./gradlew test                 # 151 tests JUnit
 ./gradlew lint                 # Android lint
-./gradlew installDebug         # APK debug (.next, coexiste avec la v1.3)
+./gradlew installDebug         # APK debug
 ./build-release.sh             # APK release signé → dist/almost-blue-vX.Y.apk
 ```
 
@@ -101,8 +95,8 @@ par les tests.
 
 ## Roadmap
 
-- **v1.3 RN** *(remplacée)* : le code TS gelé vit dans `spec/` jusqu'à la bascule.
-- **v2.0 Kotlin** *(cette branche)* : parité stricte v1.3, APK 13,4 Mo (vs ~25 Mo RN).
+- **v1.3 RN** *(remplacée)* : dernier état dans l'historique git (tag de la bascule).
+- **v2.0 Kotlin** *(livré, 2026-07)* : parité stricte v1.3, APK 13,4 Mo (vs ~25 Mo RN).
 - **À venir** : Oblyk API (recherche secteurs), personnalisation des seuils météo,
   géoloc « secteurs proches », analytics opt-in.
 - **iOS : abandonné** *(2026-07)* — pas de Mac ni de compte Apple Developer.

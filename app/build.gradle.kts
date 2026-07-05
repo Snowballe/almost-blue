@@ -53,10 +53,6 @@ android {
     }
 
     buildTypes {
-        debug {
-            // Coexistence avec la v1.3 RN installée pendant la réécriture.
-            applicationIdSuffix = ".next"
-        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

@@ -222,8 +222,7 @@ keystore debug (dev/CI uniquement). **Même keystore que la v1.3 RN** → la v2.
 s'installe en mise à jour par-dessus.
 
 Release : R8/minify + shrinkResources, ABI `arm64-v8a` uniquement (device perso —
-élargir `ndk.abiFilters` au besoin). Le build **debug** porte le suffixe
-d'applicationId `.next` pour coexister avec la release installée.
+élargir `ndk.abiFilters` au besoin).
 
 **Construire un APK signé (distribution) :**
 
