@@ -45,7 +45,8 @@ fun buildNotificationBody(
         return "Toutes les faces sont sèches !"
     }
 
-    val faces = goodOrientations.map { it.orientation.frenchName }
+    // distinct() : une même face peut apparaître deux fois (roches FAST et SLOW)
+    val faces = goodOrientations.map { it.orientation.frenchName }.distinct()
     val subName = goodOrientations[0].subSectorName
 
     if (faces.size == 1) {
@@ -136,21 +137,21 @@ fun buildDigestLines(
     for (sector in favSectors) {
         val forecast = forecasts[sector.id] ?: continue
 
-        // Dédupliquer les orientations, garder le premier sous-secteur représentatif
-        val orientationMap = LinkedHashMap<Orientation, String>()
+        // Dédupliquer par (orientation, roche) : deux roches d'une même face
+        // ne sèchent pas à la même vitesse, chaque paire est scorée séparément.
+        val faces = LinkedHashSet<Pair<Orientation, RockType>>()
         for (ss in sector.subSectors) {
-            orientationMap.putIfAbsent(ss.orientation, ss.name)
+            faces.add(ss.orientation to ss.rockType)
         }
-        if (orientationMap.isEmpty()) continue
+        if (faces.isEmpty()) continue
 
-        // Scorer chaque orientation distincte, tout en gardant le meilleur pour le repli
+        // Scorer chaque paire distincte, tout en gardant la meilleure pour le repli
         val summaries = mutableListOf<SubSectorSummary>()
         var bestScore = -1.0
         var bestOrientation: Orientation? = null
         var bestWindow: GoodWindow? = null
 
-        for (orientation in orientationMap.keys) {
-            val rockType = sector.subSectors.first { it.orientation == orientation }.rockType
+        for ((orientation, rockType) in faces) {
             val summary = summarize(forecast, orientation, rockType, DIGEST_HORIZON_HOURS)
             summaries.add(summary)
             if (summary.numericScore > bestScore) {
@@ -163,7 +164,9 @@ fun buildDigestLines(
         if (bestOrientation == null) continue
 
         // Secteur multi-faces entièrement sec → phrase « dans son ensemble »
-        if (orientationMap.size >= 2 && summaries.all { it.score == WeatherScore.GOOD }) {
+        // (compté en orientations distinctes : un mono-face bi-roche n'est pas un « ensemble »)
+        val distinctOrientations = faces.mapTo(HashSet()) { it.first }.size
+        if (distinctOrientations >= 2 && summaries.all { it.score == WeatherScore.GOOD }) {
             val timing = formatEnsembleTiming(getEarliestWindow(summaries.map { it.nextGoodWindow }), today)
             lines.add("${sector.name} — grimpable dans son ensemble${if (timing != null) " ($timing)" else ""}")
             continue

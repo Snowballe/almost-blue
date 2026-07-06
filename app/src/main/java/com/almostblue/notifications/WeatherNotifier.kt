@@ -7,6 +7,7 @@ import com.almostblue.data.SettingsRepository
 import com.almostblue.data.sectors as allSectorsDefault
 import com.almostblue.domain.Orientation
 import com.almostblue.domain.PARIS_ZONE
+import com.almostblue.domain.RockType
 import com.almostblue.domain.WeatherForecast
 import com.almostblue.domain.WeatherScore
 import com.almostblue.domain.isOffSeason
@@ -20,7 +21,7 @@ import kotlinx.coroutines.flow.first
  *
  * Flux :
  *  1. checkAndNotify() est appelé par le CheckWorker (WorkManager).
- *  2. Pour chaque secteur favori, on calcule le meilleur score par orientation.
+ *  2. Pour chaque secteur favori, on calcule le meilleur score par (orientation, roche).
  *  3. Si un score passe de !good → good par rapport au dernier check → notif.
  *  4. Les nouveaux scores sont persistés dans NotificationRepository.
  */
@@ -79,25 +80,32 @@ class WeatherNotifier(
                 continue // Erreur réseau → on skip ce secteur
             }
 
-            // Dédupliquer les orientations tout en gardant le premier sous-secteur représentatif
-            val orientationMap = LinkedHashMap<Orientation, String>()
+            // Dédupliquer par (orientation, roche) en gardant le premier
+            // sous-secteur représentatif : deux roches d'une même face ne
+            // sèchent pas à la même vitesse (ex. Pen-Hir N : Menhir FAST
+            // vs Face nord SLOW), chacune mérite son propre suivi.
+            val faceMap = LinkedHashMap<Pair<Orientation, RockType>, String>()
             for (ss in sector.subSectors) {
-                orientationMap.putIfAbsent(ss.orientation, ss.name)
+                faceMap.putIfAbsent(ss.orientation to ss.rockType, ss.name)
             }
 
             val newlyGood = mutableListOf<GoodOrientation>()
 
-            for ((orientation, subSectorName) in orientationMap) {
-                val key = "${sector.id}:${orientation.name}"
-                val rockType = sector.subSectors.first { it.orientation == orientation }.rockType
+            for ((face, subSectorName) in faceMap) {
+                val (orientation, rockType) = face
+                val key = "${sector.id}:${orientation.name}:${rockType.name}"
+                // Clé d'avant le suivi par roche — lue en repli pour ne pas
+                // re-notifier tous les favoris déjà GOOD à la migration.
+                val legacyKey = "${sector.id}:${orientation.name}"
                 val summary = summarize(forecast, orientation, rockType, 72)
-                val wasGood = lastScores[key] == WeatherScore.GOOD
+                val wasGood = (lastScores[key] ?: lastScores[legacyKey]) == WeatherScore.GOOD
 
                 if (summary.score == WeatherScore.GOOD && !wasGood) {
                     newlyGood.add(GoodOrientation(orientation, subSectorName, summary.nextGoodWindow))
                 }
 
                 newScores[key] = summary.score
+                newScores.remove(legacyKey)
             }
 
             if (newlyGood.isNotEmpty()) {
@@ -105,7 +113,7 @@ class WeatherNotifier(
                 notifier.display(
                     AppNotification(
                         title = "${sector.name} — $timing",
-                        body = buildNotificationBody(newlyGood, orientationMap.size),
+                        body = buildNotificationBody(newlyGood, faceMap.size),
                     ),
                 )
             }

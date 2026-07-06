@@ -12,7 +12,7 @@ import kotlinx.serialization.json.Json
 
 /**
  * État de notifications — remplace useNotificationStore.ts.
- * lastScores : clé `sectorId:orientation` → dernier score connu (détection
+ * lastScores : clé `sectorId:orientation:rockType` → dernier score connu (détection
  * des transitions !good → good). lastDigestDate/Summary : gardes anti-doublon
  * du digest quotidien.
  */

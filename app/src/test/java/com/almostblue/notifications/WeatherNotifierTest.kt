@@ -60,6 +60,16 @@ class WeatherNotifierTest {
         ),
     )
 
+    // Même face N en deux roches (le cas Pen-Hir : Menhir FAST vs Face nord SLOW)
+    private val sectorMixedRock = Sector(
+        id = "test-mixed", name = "Falaise Mixte", latitude = 44.0, longitude = 5.0,
+        subSectors = listOf(
+            SubSector("mr1", "Le Pilier", Orientation.N, RockType.FAST),
+            SubSector("mr2", "Grande Face Nord", Orientation.N, RockType.SLOW),
+            SubSector("mr3", "Face Sud", Orientation.S, RockType.FAST),
+        ),
+    )
+
     /** Notifier factice : enregistre les notifications affichées. */
     private class FakeNotifier : Notifier {
         val displayed = mutableListOf<AppNotification>()
@@ -84,6 +94,7 @@ class WeatherNotifierTest {
         var today: LocalDate = winterDay
         var summarize: Summarizer = { _, _, _, _ -> badSummary }
         var fetch: suspend (Double, Double) -> WeatherForecast = { _, _ -> emptyForecast }
+        var allSectors: List<Sector> = sectors
 
         suspend fun setupDefaults() {
             sectorsRepo.toggleFavorite("buoux")
@@ -96,7 +107,7 @@ class WeatherNotifierTest {
             fetchForecast = { lat, lon -> fetch(lat, lon) },
             notifier = notifier,
             summarize = { f, o, r, h -> summarize(f, o, r, h) },
-            allSectors = sectors,
+            allSectors = allSectors,
             today = { today },
         )
     }
@@ -224,6 +235,60 @@ class WeatherNotifierTest {
         assertEquals("Toutes les faces sont sèches !", call.body)
     }
 
+    // ─── suivi par (orientation, roche) ─────────────────────────────────────────
+
+    @Test
+    fun `deux roches d'une meme face sont suivies separement`() = runTest {
+        val h = Harness(this)
+        h.allSectors = sectors + sectorMixedRock
+        h.sectorsRepo.toggleFavorite("test-mixed")
+        // Seule la roche SLOW de la face N est sèche
+        h.summarize = { _, orientation, rockType, _ ->
+            if (orientation == Orientation.N && rockType == RockType.SLOW) goodSummary() else badSummary
+        }
+        h.build().checkAndNotify()
+        assertEquals(1, h.notifier.displayed.size)
+        val call = h.notifier.displayed[0]
+        assertTrue(call.body.startsWith("La face Nord est sèche"))
+        // Recommande le sous-secteur SLOW, pas le FAST de la même face
+        assertTrue(call.body.contains("Allez sur Grande Face Nord"))
+    }
+
+    @Test
+    fun `meme face good en deux roches - le message ne duplique pas le nom de la face`() = runTest {
+        val h = Harness(this)
+        h.allSectors = sectors + sectorMixedRock
+        h.sectorsRepo.toggleFavorite("test-mixed")
+        h.summarize = { _, orientation, _, _ ->
+            if (orientation == Orientation.N) goodSummary() else badSummary
+        }
+        h.build().checkAndNotify()
+        val call = h.notifier.displayed[0]
+        assertTrue(call.body.startsWith("La face Nord est sèche"))
+        assertFalse(call.body.contains("Nord et Nord"))
+    }
+
+    @Test
+    fun `cle legacy sans roche - pas de re-notification a la migration, scores re-ecrits au nouveau format`() = runTest {
+        val h = Harness(this)
+        h.allSectors = sectors + sectorMixedRock
+        h.sectorsRepo.toggleFavorite("test-mixed")
+        // Scores persistés par l'ancien format sectorId:orientation
+        h.notificationRepo.setScores(
+            mapOf("test-mixed:N" to WeatherScore.GOOD, "test-mixed:S" to WeatherScore.GOOD),
+        )
+        h.summarize = { _, _, _, _ -> goodSummary() }
+        h.build().checkAndNotify()
+        assertTrue(h.notifier.displayed.isEmpty()) // déjà GOOD via la clé legacy
+
+        val persisted = h.notificationRepo.lastScores.first()
+        assertEquals(WeatherScore.GOOD, persisted["test-mixed:N:FAST"])
+        assertEquals(WeatherScore.GOOD, persisted["test-mixed:N:SLOW"])
+        assertEquals(WeatherScore.GOOD, persisted["test-mixed:S:FAST"])
+        assertFalse(persisted.containsKey("test-mixed:N"))
+        assertFalse(persisted.containsKey("test-mixed:S"))
+    }
+
     // ─── formatNextWindow ───────────────────────────────────────────────────────
     // today = 2026-12-15, demain = 2026-12-16
 
@@ -320,6 +385,23 @@ class WeatherNotifierTest {
         assertTrue(lines[0].contains("grimpable dans son ensemble"))
         assertTrue(lines[0].contains("dès demain"))
         assertFalse(lines[0].contains("Face"))
+    }
+
+    @Test
+    fun `digest - pas de dans son ensemble pour un mono-face bi-roche, meme good`() {
+        val sectorBiRock = Sector(
+            id = "test-birock", name = "Falaise Bi-roche", latitude = 44.0, longitude = 5.0,
+            subSectors = listOf(
+                SubSector("br1", "Pilier", Orientation.N, RockType.FAST),
+                SubSector("br2", "Grand Mur", Orientation.N, RockType.SLOW),
+            ),
+        )
+        val summarize: Summarizer = { _, _, _, _ -> goodSummary("2026-12-16") }
+        val lines = buildDigestLines(
+            listOf(sectorBiRock), mapOf("test-birock" to emptyForecast), summarize, winterDay,
+        )
+        assertFalse(lines[0].contains("dans son ensemble"))
+        assertTrue(lines[0].contains("Face Nord"))
     }
 
     @Test
