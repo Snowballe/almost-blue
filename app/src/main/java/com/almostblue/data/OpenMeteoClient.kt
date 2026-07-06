@@ -65,7 +65,13 @@ fun parseOpenMeteoResponse(body: String): OpenMeteoHourly {
 
 private val httpClient by lazy { OkHttpClient() }
 
-/** GET /v1/forecast — mêmes paramètres que la v1.3. */
+/**
+ * GET /v1/forecast — paramètres v1.3 + `past_days=2` : sans les heures passées,
+ * le lookback de pluie récente (6h/24h, calculé sur les créneaux précédents du
+ * forecast) était vide en début de journée — la pluie de la veille rendait
+ * invisible l'humidité du calcaire SLOW. Les créneaux passés sont ensuite
+ * exclus du scoring par le filtre `ts > nowMs` de getSubSectorSummary.
+ */
 suspend fun fetchForecastHttp(
     latitude: Double,
     longitude: Double,
@@ -79,6 +85,7 @@ suspend fun fetchForecastHttp(
             "temperature_2m,windspeed_10m,winddirection_10m,precipitation,precipitation_probability,weathercode",
         )
         .addQueryParameter("forecast_days", "3")
+        .addQueryParameter("past_days", "2")
         .addQueryParameter("timezone", "Europe/Paris")
         .build()
 
