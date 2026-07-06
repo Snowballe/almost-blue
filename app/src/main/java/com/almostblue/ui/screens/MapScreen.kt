@@ -46,6 +46,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.almostblue.AppGraph
+import com.almostblue.BuildConfig
 import com.almostblue.data.Sector
 import com.almostblue.data.sectors
 import com.almostblue.domain.getSubSectorSummary
@@ -58,11 +59,13 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import okhttp3.OkHttpClient
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.module.http.HttpRequestUtil
 import org.maplibre.android.plugins.annotation.Circle
 import org.maplibre.android.plugins.annotation.CircleManager
 import org.maplibre.android.plugins.annotation.CircleOptions
@@ -164,6 +167,20 @@ fun MapScreen(onOpenSector: (String) -> Unit) {
 
     val mapView = remember {
         MapLibre.getInstance(context)
+        // Tile usage policy OSM : les requêtes vers tile.openstreetmap.org
+        // doivent identifier l'application (User-Agent dédié), sous peine de
+        // blocage silencieux des tuiles. Idempotent, ne touche que MapLibre.
+        HttpRequestUtil.setOkHttpClient(
+            OkHttpClient.Builder()
+                .addInterceptor { chain ->
+                    chain.proceed(
+                        chain.request().newBuilder()
+                            .header("User-Agent", "AlmostBlue/${BuildConfig.VERSION_NAME} (com.almostblue; Android)")
+                            .build(),
+                    )
+                }
+                .build(),
+        )
         MapView(context).apply { onCreate(null) }
     }
 
