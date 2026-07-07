@@ -67,6 +67,11 @@ class WeatherNotifier(
 
         if (!force && !settings.notificationsEnabled) return
 
+        // Journal de fiabilité : la chaîne a tourné, quel que soit le
+        // déclencheur (CheckWorker, ouverture d'app, check manuel). Avant la
+        // garde saison : un passage estival dormant compte comme signe de vie.
+        notificationRepo.setLastCheckAtMs(System.currentTimeMillis())
+
         // Respecter la saisonnalité : pas de notifs en été sauf si activé ou forcé
         val offSeason = isOffSeason(today(), settings.offseasonStart, settings.offseasonEnd)
         if (!force && !offSeason && !settings.notificationsInSummer) return

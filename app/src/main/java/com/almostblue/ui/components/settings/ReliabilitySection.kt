@@ -100,9 +100,10 @@ fun ReliabilitySection() {
 private val DIGEST_FIRED_FORMAT = DateTimeFormatter.ofPattern("EEE d MMM HH:mm", Locale.FRENCH)
 
 /**
- * Journal de fiabilité : derniers passages réels de la chaîne de fond
- * (check météo, digest). Sert à diagnostiquer Doze/OEM : si « Dernier check »
- * vieillit au-delà de l'intervalle configuré, quelque chose bloque en fond.
+ * Journal de fiabilité : dernier passage de checkAndNotify (fond, ouverture
+ * d'app ou check manuel) et dernier tir réel du digest. Sert à diagnostiquer
+ * Doze/OEM : app non ouverte + « Dernier check » qui vieillit au-delà de
+ * l'intervalle configuré = quelque chose bloque en fond.
  */
 @Composable
 private fun JournalRow() {

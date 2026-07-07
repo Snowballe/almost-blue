@@ -184,6 +184,31 @@ class WeatherNotifierTest {
     }
 
     @Test
+    fun `journal - un check ecrit lastCheckAtMs, meme dormant en ete`() = runTest {
+        val h = Harness(this).apply { setupDefaults() }
+        h.today = LocalDate.of(2026, 7, 15) // été + notificationsInSummer=false → dormant
+        h.build().checkAndNotify()
+        assertTrue(h.notifier.displayed.isEmpty()) // pas d'alerte (garde saison)…
+        assertNotNull(h.notificationRepo.lastCheckAtMs.first()) // …mais signe de vie journalisé
+    }
+
+    @Test
+    fun `journal - un check manuel (force) ecrit lastCheckAtMs meme notifs off`() = runTest {
+        val h = Harness(this).apply { setupDefaults() }
+        h.settingsRepo.setNotificationsEnabled(false)
+        h.build().checkAndNotify(force = true)
+        assertNotNull(h.notificationRepo.lastCheckAtMs.first())
+    }
+
+    @Test
+    fun `journal - rien si notificationsEnabled=false sans force`() = runTest {
+        val h = Harness(this).apply { setupDefaults() }
+        h.settingsRepo.setNotificationsEnabled(false)
+        h.build().checkAndNotify()
+        assertNull(h.notificationRepo.lastCheckAtMs.first())
+    }
+
+    @Test
     fun `l'alerte porte l'id du secteur en stableKey (remplacement par spot)`() = runTest {
         val h = Harness(this).apply { setupDefaults() }
         h.notificationRepo.setScores(mapOf("buoux:S" to WeatherScore.BAD))
