@@ -1,6 +1,7 @@
 package com.almostblue
 
 import android.app.Application
+import android.app.job.JobScheduler
 import com.almostblue.background.CheckWorker
 import com.almostblue.notifications.initNotificationChannel
 import java.util.concurrent.atomic.AtomicBoolean
@@ -15,6 +16,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * ID du job planifié par react-native-background-fetch (v1.3 RN) : persisté par
+ * JobScheduler à la mise à jour v1.3 → v2.0 alors que sa classe de service
+ * n'existe plus dans l'APK.
+ */
+private const val LEGACY_RN_FETCH_JOB_ID = 999
+
 class AlmostBlueApp : Application() {
 
     /** Scope applicatif pour les initialisations asynchrones (planifications). */
@@ -26,6 +34,10 @@ class AlmostBlueApp : Application() {
     override fun onCreate() {
         super.onCreate()
         initNotificationChannel(this)
+
+        // Purge le job fantôme de la v1.3 (idempotent, sans effet sur le job
+        // WorkManager qui a son propre ID géré par androidx.work).
+        getSystemService(JobScheduler::class.java)?.cancel(LEGACY_RN_FETCH_JOB_ID)
 
         // Équivalent du useNotificationSetup de la v1.3 : (re-)planifier le check
         // périodique et le digest au démarrage PUIS à chaque changement des
