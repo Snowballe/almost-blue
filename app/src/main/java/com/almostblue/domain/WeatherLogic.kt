@@ -72,10 +72,11 @@ object ScoreWeights {
 
     // Bonus « conditions excellentes » — appliqués uniquement sur un créneau
     // propre : aucun malus déclenché (précip/WMO/proba/vent fort/froid) et
-    // aucune pluie récente. Ils rendent le haut de l'échelle atteignable :
-    // BASE + clair + sec + temp idéale + vent séchant = 10.0 pile.
-    const val DRY_STREAK_BONUS = 1.5       // 0 mm sur la fenêtre lookback de la roche
-    const val TEMP_IDEAL_BONUS = 1.0       // friction optimale
+    // aucune pluie récente. Ils rendent le plafond atteignable sans dépendre
+    // du vent : BASE + clair + sec + temp idéale = 10.0 pile. Le vent séchant
+    // de face reste un bonus mais sature via le clamp [0, 10].
+    const val DRY_STREAK_BONUS = 2.0       // 0 mm sur la fenêtre lookback de la roche
+    const val TEMP_IDEAL_BONUS = 1.5       // friction optimale
     const val TEMP_IDEAL_MIN = 5.0         // °C — bande décalée par le correctif d'orientation
     const val TEMP_IDEAL_MAX = 18.0        // °C
 

@@ -506,17 +506,26 @@ class GetSubSectorSummaryTest {
     // ── Bonus « conditions excellentes » ────────────────────────────────────────
 
     @Test
-    fun `canicule - clair, sec, 38degC, vent nul - score 8 exactement`() {
-        // BASE 6 + clair 0.5 + sécheresse 1.5 = 8.0 (38°C hors bande de friction)
+    fun `canicule - clair, sec, 38degC, vent nul - score 8,5 exactement`() {
+        // BASE 6 + clair 0.5 + sécheresse 2.0 = 8.5 (38°C hors bande de friction)
         val slots = listOf(makeSlot("2026-06-16", 14, temperature = 38.0))
         val summary = summarize(makeForecast(slots), Orientation.S)
-        assertEquals(8.0, summary.numericScore, 1e-9)
+        assertEquals(8.5, summary.numericScore, 1e-9)
         assertEquals(WeatherScore.GOOD, summary.score)
     }
 
     @Test
-    fun `journee parfaite - clair, sec, 12degC, vent sechant de face - score 10`() {
-        // BASE 6 + clair 0.5 + sécheresse 1.5 + temp idéale 1.0 + vent séchant 1.0 = 10.0
+    fun `plafond sans vent - clair, sec, temp ideale, vent nul - score 10`() {
+        // Le 10 ne doit pas dépendre du vent séchant (facteur subi) :
+        // BASE 6 + clair 0.5 + sécheresse 2.0 + temp idéale 1.5 = 10.0 pile
+        val slots = listOf(makeSlot("2026-06-16", 14, temperature = 12.0))
+        val summary = summarize(makeForecast(slots), Orientation.S)
+        assertEquals(10.0, summary.numericScore, 1e-9)
+    }
+
+    @Test
+    fun `journee parfaite avec vent sechant de face - le clamp sature a 10`() {
+        // 6 + 0.5 + 2.0 + 1.5 + vent séchant 1.0 = 11 → clampé à 10.0
         val slots = listOf(
             makeSlot(
                 "2026-06-16", 14,
@@ -557,12 +566,12 @@ class GetSubSectorSummaryTest {
 
     @Test
     fun `bande de friction decalee par l'orientation - 20degC bonus en N, pas en S`() {
-        // Face N : bande [9, 22] → 20°C dedans (9.0) ; face S : [3, 16] → dehors (8.0)
+        // Face N : bande [9, 22] → 20°C dedans (10.0) ; face S : [3, 16] → dehors (8.5)
         val slots = listOf(makeSlot("2026-06-16", 14, temperature = 20.0))
         val summaryN = summarize(makeForecast(slots), Orientation.N)
         val summaryS = summarize(makeForecast(slots), Orientation.S)
-        assertEquals(9.0, summaryN.numericScore, 1e-9)
-        assertEquals(8.0, summaryS.numericScore, 1e-9)
+        assertEquals(10.0, summaryN.numericScore, 1e-9)
+        assertEquals(8.5, summaryS.numericScore, 1e-9)
     }
 
     // ── TEST DE RÉGRESSION : timezone ───────────────────────────────────────────
