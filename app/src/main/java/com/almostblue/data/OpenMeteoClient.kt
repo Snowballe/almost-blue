@@ -111,7 +111,16 @@ class OpenMeteoClient(
     // secteur avant que la première requête se termine.
     private val pending = HashMap<String, CompletableDeferred<WeatherForecast>>()
 
-    suspend fun getCachedForecast(latitude: Double, longitude: Double): WeatherForecast {
+    /**
+     * [forceRefresh] ignore la lecture du cache (TTL) mais conserve la dédup en
+     * vol et l'écriture : un pull-to-refresh pendant une requête partage son
+     * résultat au lieu d'en lancer une deuxième.
+     */
+    suspend fun getCachedForecast(
+        latitude: Double,
+        longitude: Double,
+        forceRefresh: Boolean = false,
+    ): WeatherForecast {
         // Arrondi à 4 décimales (~11 m) pour que deux appels avec de légères
         // variations de float partagent le même cache. Locale.US : point décimal
         // garanti quel que soit le locale du device.
@@ -121,7 +130,9 @@ class OpenMeteoClient(
         var owned: CompletableDeferred<WeatherForecast>? = null
         mutex.withLock {
             // 1. Cache chaud → retour immédiat
-            cache[key]?.let { if (nowMs() - it.ts < CACHE_TTL_MS) return it.forecast }
+            if (!forceRefresh) {
+                cache[key]?.let { if (nowMs() - it.ts < CACHE_TTL_MS) return it.forecast }
+            }
             // 2. Requête déjà en vol pour ce secteur → partager le même résultat
             val existing = pending[key]
             if (existing != null) {

@@ -3,6 +3,7 @@ package com.almostblue.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,11 +13,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -32,6 +34,7 @@ import com.almostblue.data.SubSector
 import com.almostblue.domain.GoodWindow
 import com.almostblue.domain.WeatherForecast
 import com.almostblue.domain.WeatherScore
+import com.almostblue.domain.formatRelativeAge
 import com.almostblue.domain.getSubSectorSummary
 import com.almostblue.domain.label
 import com.almostblue.ui.theme.AppTheme
@@ -68,7 +71,11 @@ private sealed interface ForecastState {
     data class Ready(val forecast: WeatherForecast) : ForecastState
 }
 
+/** Une demande de chargement : [n] force la relance, [force] bypasse le TTL du cache. */
+private data class LoadRequest(val n: Int = 0, val force: Boolean = false)
+
 /** Détail d'un secteur : méta + météo 72h par sous-secteur — port de SectorDetailScreen.tsx. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SectorDetailScreen(sectorId: String) {
     val colors = AppTheme.colors
@@ -87,16 +94,31 @@ fun SectorDetailScreen(sectorId: String) {
     }
 
     val graph = AppGraph.get(LocalContext.current)
-    var retryCount by remember { mutableIntStateOf(0) }
-    val state by produceState<ForecastState>(ForecastState.Loading, sector.id, retryCount) {
-        value = ForecastState.Loading
+    var request by remember { mutableStateOf(LoadRequest()) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    val state by produceState<ForecastState>(ForecastState.Loading, sector.id, request) {
+        // Pull-to-refresh : on garde le contenu affiché, l'indicateur suffit.
+        if (!request.force) value = ForecastState.Loading
         value = try {
-            ForecastState.Ready(graph.openMeteo.getCachedForecast(sector.latitude, sector.longitude))
+            ForecastState.Ready(
+                graph.openMeteo.getCachedForecast(
+                    sector.latitude, sector.longitude, forceRefresh = request.force,
+                ),
+            )
         } catch (_: Exception) {
             ForecastState.Error
         }
+        isRefreshing = false
     }
 
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            request = LoadRequest(n = request.n + 1, force = true)
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) {
     Column(
         Modifier
             .fillMaxSize()
@@ -130,15 +152,28 @@ fun SectorDetailScreen(sectorId: String) {
         }
         HorizontalDivider(color = colors.border, thickness = 1.dp)
 
-        Text(
-            "Sous-secteurs — météo 72h",
-            fontSize = FontSize.xs,
-            fontWeight = FontWeight.SemiBold,
-            color = colors.textMuted,
-            modifier = Modifier.padding(
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth().padding(
                 start = Spacing.lg, end = Spacing.lg, top = Spacing.xl, bottom = Spacing.sm,
             ),
-        )
+        ) {
+            Text(
+                "Sous-secteurs — météo 72h",
+                fontSize = FontSize.xs,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textMuted,
+            )
+            (state as? ForecastState.Ready)?.let { ready ->
+                Text(
+                    remember(ready) {
+                        formatRelativeAge(ready.forecast.fetchedAt, System.currentTimeMillis())
+                    },
+                    fontSize = FontSize.xs,
+                    color = colors.textMuted,
+                )
+            }
+        }
 
         when (val s = state) {
             ForecastState.Loading -> CircularProgressIndicator(
@@ -161,13 +196,14 @@ fun SectorDetailScreen(sectorId: String) {
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .border(1.dp, colors.border, RoundedCornerShape(8.dp))
-                        .clickable { retryCount++ }
+                        .clickable { request = LoadRequest(n = request.n + 1) }
                         .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                 )
                 SubSectorRows(sector.subSectors, forecast = null)
             }
             is ForecastState.Ready -> SubSectorRows(sector.subSectors, s.forecast)
         }
+    }
     }
 }
 
