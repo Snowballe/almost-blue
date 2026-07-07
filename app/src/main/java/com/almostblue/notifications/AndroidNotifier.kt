@@ -7,7 +7,6 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.almostblue.R
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Implémentation NotificationManager du canal `weather-alerts` — remplace notifee.
@@ -16,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 const val CHANNEL_ID = "weather-alerts"
 private const val DIGEST_NOTIFICATION_ID = 1
+private const val ALERT_NOTIFICATION_ID = 2
 
 /** Crée le canal de notifications (idempotent). À appeler au démarrage de l'app. */
 fun initNotificationChannel(context: Context) {
@@ -33,10 +33,6 @@ fun initNotificationChannel(context: Context) {
 
 class AndroidNotifier(private val context: Context) : Notifier {
 
-    // Les alertes secteur ne s'écrasent pas entre elles ; le digest garde un ID
-    // fixe (une seule notification de résumé, remplacée chaque jour).
-    private val nextAlertId = AtomicInteger(100)
-
     override fun display(notification: AppNotification) {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -49,9 +45,19 @@ class AndroidNotifier(private val context: Context) : Notifier {
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(notification.body))
         }
 
-        val id = if (notification.bigText) DIGEST_NOTIFICATION_ID else nextAlertId.getAndIncrement()
+        // Le couple (tag, id) identifie la notification côté système : le digest
+        // garde son ID fixe (un seul résumé, remplacé chaque jour) ; les alertes
+        // partagent un ID mais se distinguent par leur tag stable (id du secteur)
+        // — les secteurs différents s'empilent, une nouvelle alerte du même
+        // secteur remplace la précédente. Déterministe à travers les morts de
+        // process, contrairement à l'ancien compteur en mémoire.
+        val (tag, id) = if (notification.bigText) {
+            null to DIGEST_NOTIFICATION_ID
+        } else {
+            notification.stableKey to ALERT_NOTIFICATION_ID
+        }
         try {
-            NotificationManagerCompat.from(context).notify(id, builder.build())
+            NotificationManagerCompat.from(context).notify(tag, id, builder.build())
         } catch (_: SecurityException) {
             // POST_NOTIFICATIONS refusée → on respecte le choix de l'utilisateur.
         }

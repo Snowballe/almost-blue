@@ -183,6 +183,17 @@ class WeatherNotifierTest {
     }
 
     @Test
+    fun `l'alerte porte l'id du secteur en stableKey (remplacement par spot)`() = runTest {
+        val h = Harness(this).apply { setupDefaults() }
+        h.notificationRepo.setScores(mapOf("buoux:S" to WeatherScore.BAD))
+        h.summarize = { _, orientation, _, _ ->
+            if (orientation == Orientation.S) goodSummary() else badSummary
+        }
+        h.build().checkAndNotify()
+        assertEquals("buoux", h.notifier.displayed[0].stableKey)
+    }
+
+    @Test
     fun `force=true declenche meme si notificationsEnabled=false`() = runTest {
         val h = Harness(this).apply { setupDefaults() }
         h.settingsRepo.setNotificationsEnabled(false)
@@ -453,6 +464,13 @@ class WeatherNotifierTest {
         h.notificationRepo.setLastDigestSummary("ancien contenu")
         h.build().sendDailyDigest()
         assertEquals(1, h.notifier.displayed.size)
+    }
+
+    @Test
+    fun `digest - stableKey null (ID fixe, remplace le resume du jour precedent)`() = runTest {
+        val h = Harness(this).apply { setupDefaults() }
+        h.build().sendDailyDigest()
+        assertEquals(null, h.notifier.displayed[0].stableKey)
     }
 
     @Test

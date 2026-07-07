@@ -31,6 +31,12 @@ data class AppNotification(
     val body: String,
     /** true pour le digest (style BigText Android). */
     val bigText: Boolean = false,
+    /**
+     * Clé de remplacement stable (tag NotificationManager) : une nouvelle
+     * notification portant la même clé remplace la précédente dans la barre.
+     * Alertes secteur → id du secteur ; null pour le digest (ID fixe).
+     */
+    val stableKey: String? = null,
 )
 
 /** Frontière vers NotificationManager — implémentée par AndroidNotifier, fake en test. */
@@ -114,6 +120,7 @@ class WeatherNotifier(
                     AppNotification(
                         title = "${sector.name} — $timing",
                         body = buildNotificationBody(newlyGood, faceMap.size),
+                        stableKey = sector.id,
                     ),
                 )
             }
