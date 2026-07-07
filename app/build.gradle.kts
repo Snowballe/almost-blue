@@ -22,8 +22,8 @@ android {
         applicationId = "com.almostblue"
         minSdk = 24
         targetSdk = 36
-        versionCode = 5
-        versionName = "2.0"
+        versionCode = 6
+        versionName = "2.1"
 
         // Équivalent du .env de la v1.3 (OPEN_METEO_API_BASE_URL) — pas un
         // secret, l'API est gratuite et sans clé.
