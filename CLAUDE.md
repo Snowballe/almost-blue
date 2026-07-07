@@ -16,7 +16,7 @@ météo favorable s'ouvre sur leurs secteurs d'escalade suivis, hors saison esti
 | Carte | MapLibre Android + plugin annotations, tuiles raster OSM (sans clé) |
 | Tâches fond | WorkManager (check périodique) + AlarmManager exact (digest) + BootReceiver |
 | Notifications | NotificationManager natif, canal `weather-alerts` HIGH |
-| Tests | JUnit — domaine + data + notifications (162 tests) |
+| Tests | JUnit — domaine + data + notifications (166 tests) |
 | Release | R8/minify + shrinkResources, ABI `arm64-v8a` seule (device perso) |
 
 ## Palette — dark crépusculaire (référence : Chet Baker, "Almost Blue")
@@ -58,7 +58,7 @@ récente (6h vs 24h) et la sévérité du malus.
 ## Commandes
 
 ```bash
-./gradlew test                 # 162 tests JUnit
+./gradlew test                 # 166 tests JUnit
 ./gradlew lint                 # Android lint
 ./gradlew installDebug         # APK debug
 ./build-release.sh             # APK release signé → dist/almost-blue-vX.Y.apk

@@ -38,6 +38,7 @@ import com.almostblue.ui.theme.AppTheme
 import com.almostblue.ui.theme.FontSize
 import com.almostblue.ui.theme.Spacing
 import com.almostblue.ui.theme.scoreGradientColor
+import com.almostblue.ui.theme.scoreOnGradientColor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -219,7 +220,7 @@ private fun SubSectorRow(subSector: SubSector, forecast: WeatherForecast?) {
                         "${SCORE_LABEL[summary.score]} · ${"%.1f".format(Locale.FRENCH, summary.numericScore)}/10",
                         fontSize = FontSize.sm,
                         fontWeight = FontWeight.SemiBold,
-                        color = colors.background,
+                        color = scoreOnGradientColor(summary.numericScore, colors),
                         modifier = Modifier
                             .padding(top = Spacing.xs)
                             .background(scoreGradientColor(summary.numericScore), RoundedCornerShape(6.dp))

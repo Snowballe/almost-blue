@@ -1,6 +1,8 @@
 package com.almostblue.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Port 1:1 de spec/__tests__/utils/colorUtils.test.ts (mêmes triplets attendus). */
@@ -47,5 +49,27 @@ class ColorUtilsTest {
     @Test
     fun `score au-dela de 10 - clampe a 10 (vert pur)`() {
         assertEquals(Triple(0, 128, 0), scoreGradientRgb(11.0))
+    }
+
+    // ── Couleur de texte sur le gradient ────────────────────────────────────────
+
+    @Test
+    fun `texte blanc sur le rouge profond (score 0)`() {
+        assertTrue(scoreTextOnGradientIsLight(0.0))
+    }
+
+    @Test
+    fun `texte noir sur le jaune (score 5)`() {
+        assertFalse(scoreTextOnGradientIsLight(5.0))
+    }
+
+    @Test
+    fun `texte noir sur le vert clair intermediaire (score 7,5)`() {
+        assertFalse(scoreTextOnGradientIsLight(7.5))
+    }
+
+    @Test
+    fun `texte blanc sur le vert profond (score 10)`() {
+        assertTrue(scoreTextOnGradientIsLight(10.0))
     }
 }

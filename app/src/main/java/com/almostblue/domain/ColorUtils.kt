@@ -29,3 +29,26 @@ fun scoreGradientRgb(score: Double): Triple<Int, Int, Int> {
         lerp(YELLOW, GREEN, (t - 0.5) / 0.5)
     }
 }
+
+// Luminance relative (WCAG) en dessous de laquelle un texte blanc contraste
+// mieux qu'un texte noir : croisement exact à √0.0525 − 0.05 ≈ 0.179.
+private const val WHITE_TEXT_LUMINANCE_THRESHOLD = 0.179
+
+private fun srgbToLinear(channel: Int): Double {
+    val c = channel / 255.0
+    return if (c <= 0.03928) c / 12.92 else Math.pow((c + 0.055) / 1.055, 2.4)
+}
+
+/** Luminance relative (WCAG 2.x) d'un triplet sRGB [0–255]. */
+private fun relativeLuminance(rgb: Triple<Int, Int, Int>): Double =
+    0.2126 * srgbToLinear(rgb.first) +
+        0.7152 * srgbToLinear(rgb.second) +
+        0.0722 * srgbToLinear(rgb.third)
+
+/**
+ * Le texte posé sur la couleur de score doit-il être blanc (true) ou noir ?
+ * Blanc sur les extrémités sombres du gradient (rouge profond, vert profond),
+ * noir sur la zone claire du milieu (orange → jaune → vert clair).
+ */
+fun scoreTextOnGradientIsLight(score: Double): Boolean =
+    relativeLuminance(scoreGradientRgb(score)) < WHITE_TEXT_LUMINANCE_THRESHOLD
