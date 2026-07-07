@@ -175,5 +175,7 @@ class WeatherNotifier(
 
         notificationRepo.setLastDigestSummary(body)
         notificationRepo.setLastDigestDate(todayStr)
+        // Journal de fiabilité : heure de tir réelle, affichée dans Réglages.
+        notificationRepo.setLastDigestFiredAtMs(System.currentTimeMillis())
     }
 }

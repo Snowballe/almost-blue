@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -471,6 +472,21 @@ class WeatherNotifierTest {
         val h = Harness(this).apply { setupDefaults() }
         h.build().sendDailyDigest()
         assertEquals(null, h.notifier.displayed[0].stableKey)
+    }
+
+    @Test
+    fun `digest - tir enregistre au journal de fiabilite (lastDigestFiredAtMs)`() = runTest {
+        val h = Harness(this).apply { setupDefaults() }
+        h.build().sendDailyDigest()
+        assertNotNull(h.notificationRepo.lastDigestFiredAtMs.first())
+    }
+
+    @Test
+    fun `digest - garde anti-doublon - rien au journal de fiabilite`() = runTest {
+        val h = Harness(this).apply { setupDefaults() }
+        h.notificationRepo.setLastDigestDate("2026-12-15") // = today du harnais
+        h.build().sendDailyDigest()
+        assertNull(h.notificationRepo.lastDigestFiredAtMs.first())
     }
 
     @Test

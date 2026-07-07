@@ -17,6 +17,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +31,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.almostblue.AppGraph
+import com.almostblue.domain.PARIS_ZONE
+import com.almostblue.domain.formatRelativeAge
 import com.almostblue.notifications.ReliabilityStatus
 import com.almostblue.notifications.getReliabilityStatus
 import com.almostblue.notifications.isReliabilityOk
@@ -39,6 +43,9 @@ import com.almostblue.notifications.requestBatteryOptimizationExemption
 import com.almostblue.ui.theme.AppTheme
 import com.almostblue.ui.theme.FontSize
 import com.almostblue.ui.theme.Spacing
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Section « Fiabilité des notifications » — port de ReliabilitySection.tsx.
@@ -64,29 +71,74 @@ fun ReliabilitySection() {
 
     if (isReliabilityOk(s)) {
         OkRow()
-        return
+    } else {
+        if (s.batteryOptimized) {
+            FixRow(
+                title = "Optimisation batterie",
+                description = "Empêche le résumé de partir à l’heure quand l’app est fermée.",
+                onFix = { requestBatteryOptimizationExemption(context) },
+            )
+        }
+        if (!s.exactAlarmAllowed) {
+            FixRow(
+                title = "Alarmes exactes",
+                description = "Nécessaire pour déclencher le résumé à l’heure pile.",
+                onFix = { openAlarmPermissionSettings(context) },
+            )
+        }
+        if (s.needsPowerManager) {
+            FixRow(
+                title = "Démarrage automatique",
+                description = "Votre constructeur peut bloquer l’app en arrière-plan.",
+                onFix = { openPowerManagerSettings(context) },
+            )
+        }
     }
+    JournalRow()
+}
 
-    if (s.batteryOptimized) {
-        FixRow(
-            title = "Optimisation batterie",
-            description = "Empêche le résumé de partir à l’heure quand l’app est fermée.",
-            onFix = { requestBatteryOptimizationExemption(context) },
-        )
-    }
-    if (!s.exactAlarmAllowed) {
-        FixRow(
-            title = "Alarmes exactes",
-            description = "Nécessaire pour déclencher le résumé à l’heure pile.",
-            onFix = { openAlarmPermissionSettings(context) },
-        )
-    }
-    if (s.needsPowerManager) {
-        FixRow(
-            title = "Démarrage automatique",
-            description = "Votre constructeur peut bloquer l’app en arrière-plan.",
-            onFix = { openPowerManagerSettings(context) },
-        )
+private val DIGEST_FIRED_FORMAT = DateTimeFormatter.ofPattern("EEE d MMM HH:mm", Locale.FRENCH)
+
+/**
+ * Journal de fiabilité : derniers passages réels de la chaîne de fond
+ * (check météo, digest). Sert à diagnostiquer Doze/OEM : si « Dernier check »
+ * vieillit au-delà de l'intervalle configuré, quelque chose bloque en fond.
+ */
+@Composable
+private fun JournalRow() {
+    val colors = AppTheme.colors
+    val repo = AppGraph.get(LocalContext.current).notificationRepo
+    val lastCheckMs by repo.lastCheckAtMs.collectAsState(initial = null)
+    val lastDigestMs by repo.lastDigestFiredAtMs.collectAsState(initial = null)
+
+    val lastCheckLabel = lastCheckMs?.let {
+        formatRelativeAge(Instant.ofEpochMilli(it).toString(), System.currentTimeMillis())
+    } ?: "—"
+    val lastDigestLabel = lastDigestMs?.let {
+        DIGEST_FIRED_FORMAT.format(Instant.ofEpochMilli(it).atZone(PARIS_ZONE))
+    } ?: "—"
+
+    Column {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(colors.surface)
+                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        ) {
+            Text(
+                "Dernier check météo : $lastCheckLabel",
+                fontSize = FontSize.sm,
+                color = colors.textMuted,
+                lineHeight = 18.sp,
+            )
+            Text(
+                "Dernier digest : $lastDigestLabel",
+                fontSize = FontSize.sm,
+                color = colors.textMuted,
+                lineHeight = 18.sp,
+            )
+        }
+        HorizontalDivider(color = colors.border, thickness = 1.dp)
     }
 }
 

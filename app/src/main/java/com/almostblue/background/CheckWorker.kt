@@ -30,6 +30,9 @@ class CheckWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
             // planification auto-réparante. L'alarme est idempotente (même
             // PendingIntent) → sans danger.
             graph.digestScheduler.scheduleNext()
+            // Journal de fiabilité : horodate un passage complet de la chaîne
+            // (réseau inclus) — visible dans Réglages pour diagnostiquer Doze/OEM.
+            graph.notificationRepo.setLastCheckAtMs(System.currentTimeMillis())
             Result.success()
         } catch (_: Exception) {
             Result.retry()
