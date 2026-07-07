@@ -5,8 +5,10 @@ import java.time.Instant
 import java.time.LocalDate
 
 /**
- * Logique météo — port 1:1 de spec/src/utils/weatherLogic.ts (v1.3, fixes
- * 7a09d92 et 4bed166 inclus). En cas de doute, le TS fait foi (parité stricte).
+ * Logique météo — modèle additif pondéré, hérité du port 1:1 de la v1.3 RN
+ * (spec/src/utils/weatherLogic.ts, fixes 7a09d92 et 4bed166 inclus).
+ * Diverge de la v1.3 depuis l'ajout des bonus « conditions excellentes »
+ * (v2.x) : la parité TS n'est plus une référence, les tests font foi.
  */
 
 // ─── Seuils ──────────────────────────────────────────────────────────────────
@@ -68,6 +70,15 @@ object ScoreWeights {
     // Bonus ciel dégagé (codes WMO 0 et 1)
     const val WMO_CLEAR_BONUS = 0.5
 
+    // Bonus « conditions excellentes » — appliqués uniquement sur un créneau
+    // propre : aucun malus déclenché (précip/WMO/proba/vent fort/froid) et
+    // aucune pluie récente. Ils rendent le haut de l'échelle atteignable :
+    // BASE + clair + sec + temp idéale + vent séchant = 10.0 pile.
+    const val DRY_STREAK_BONUS = 1.5       // 0 mm sur la fenêtre lookback de la roche
+    const val TEMP_IDEAL_BONUS = 1.0       // friction optimale
+    const val TEMP_IDEAL_MIN = 5.0         // °C — bande décalée par le correctif d'orientation
+    const val TEMP_IDEAL_MAX = 18.0        // °C
+
     // Malus par catégorie WMO (appliqués une seule fois, pas cumulables)
     const val WMO_STORM_PENALTY = -6.0      // orages
     const val WMO_SNOW_PENALTY = -4.0       // neige / grésil
@@ -84,6 +95,7 @@ private val WMO_CODES_STORM = setOf(95, 96, 99)
 private val WMO_CODES_SNOW = setOf(71, 73, 75, 77, 85, 86)
 private val WMO_CODES_RAIN = setOf(55, 57, 63, 65, 67, 81, 82)
 private val WMO_CODES_CLEAR = setOf(0, 1)
+private val WMO_CODES_BAD = WMO_CODES_STORM + WMO_CODES_SNOW + WMO_CODES_RAIN
 
 // ─── Orientation → correctif température ─────────────────────────────────────
 
@@ -161,7 +173,8 @@ private fun scoreSlotNumeric(
     }
 
     // 3. Température effective (avec correctif d'orientation)
-    val effectiveMinTemp = MIN_TEMP + ORIENTATION_TEMP_ADJUST.getValue(orientation)
+    val orientationAdjust = ORIENTATION_TEMP_ADJUST.getValue(orientation)
+    val effectiveMinTemp = MIN_TEMP + orientationAdjust
     if (slot.temperature < effectiveMinTemp) {
         score -= (effectiveMinTemp - slot.temperature) * ScoreWeights.TEMP_COLD_PER_DEG
     }
@@ -196,6 +209,26 @@ private fun scoreSlotNumeric(
     ) {
         // Vent de face, pas de pluie : conditions idéales de séchage
         score += ScoreWeights.WIND_DRYING_BONUS
+    }
+
+    // 6. Bonus « conditions excellentes » — uniquement si aucun malus n'a été
+    // déclenché et que la roche est sèche : c'est ce qui distingue le haut de
+    // l'échelle (8–10) d'un simple créneau sans problème (~6.5).
+    val clean = slot.precipitation == 0.0 &&
+        slot.weatherCode !in WMO_CODES_BAD &&
+        slot.precipProbability < ScoreWeights.PRECIP_PROB_WARN_THRESHOLD &&
+        slot.windspeed <= ScoreWeights.WIND_STRONG_THRESHOLD &&
+        slot.temperature >= effectiveMinTemp &&
+        recentRainMm == 0.0
+    if (clean) {
+        score += ScoreWeights.DRY_STREAK_BONUS
+        // Bande de friction idéale, décalée par l'orientation comme le seuil
+        // froid : face N grimpe plus chaud, face S plus frais.
+        val idealMin = ScoreWeights.TEMP_IDEAL_MIN + orientationAdjust
+        val idealMax = ScoreWeights.TEMP_IDEAL_MAX + orientationAdjust
+        if (slot.temperature in idealMin..idealMax) {
+            score += ScoreWeights.TEMP_IDEAL_BONUS
+        }
     }
 
     return clamp(score)
@@ -237,6 +270,20 @@ private fun scoreSlotBase(slot: WeatherSlot): Double {
     // (la pluie tombée entre H-24 et H-6 n'est donc pas comptée ici).
     if (slot.recentRainMm6h > 0) {
         score += ScoreWeights.RECENT_RAIN_PER_MM_SLOW * slot.recentRainMm6h * ScoreWeights.EXPOSURE_SHELTERED
+    }
+
+    // Bonus « conditions excellentes » — même gating que scoreSlotNumeric,
+    // convention roche inconnue : fenêtre 6h, bande de température brute.
+    val clean = slot.precipitation == 0.0 &&
+        slot.weatherCode !in WMO_CODES_BAD &&
+        slot.precipProbability < ScoreWeights.PRECIP_PROB_WARN_THRESHOLD &&
+        slot.temperature >= MIN_TEMP &&
+        slot.recentRainMm6h == 0.0
+    if (clean) {
+        score += ScoreWeights.DRY_STREAK_BONUS
+        if (slot.temperature in ScoreWeights.TEMP_IDEAL_MIN..ScoreWeights.TEMP_IDEAL_MAX) {
+            score += ScoreWeights.TEMP_IDEAL_BONUS
+        }
     }
 
     return clamp(score)

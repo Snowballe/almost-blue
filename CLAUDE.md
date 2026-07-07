@@ -16,7 +16,7 @@ météo favorable s'ouvre sur leurs secteurs d'escalade suivis, hors saison esti
 | Carte | MapLibre Android + plugin annotations, tuiles raster OSM (sans clé) |
 | Tâches fond | WorkManager (check périodique) + AlarmManager exact (digest) + BootReceiver |
 | Notifications | NotificationManager natif, canal `weather-alerts` HIGH |
-| Tests | JUnit — domaine + data + notifications (151 tests) |
+| Tests | JUnit — domaine + data + notifications (161 tests) |
 | Release | R8/minify + shrinkResources, ABI `arm64-v8a` seule (device perso) |
 
 ## Palette — dark crépusculaire (référence : Chet Baker, "Almost Blue")
@@ -58,7 +58,7 @@ récente (6h vs 24h) et la sévérité du malus.
 ## Commandes
 
 ```bash
-./gradlew test                 # 151 tests JUnit
+./gradlew test                 # 161 tests JUnit
 ./gradlew lint                 # Android lint
 ./gradlew installDebug         # APK debug
 ./build-release.sh             # APK release signé → dist/almost-blue-vX.Y.apk
@@ -66,8 +66,8 @@ récente (6h vs 24h) et la sévérité du malus.
 
 ## Logique météo
 
-Fichier principal : `domain/WeatherLogic.kt` — port 1:1 de la v1.3, verrouillé
-par les tests.
+Fichier principal : `domain/WeatherLogic.kt` — hérité du port 1:1 de la v1.3,
+a divergé depuis (bonus d'excellence) ; les tests font foi.
 
 - 1 appel Open-Meteo par secteur ; cache mémoire 1h + dédup en vol (`OpenMeteoClient`).
 - **Modèle additif pondéré** : chaque créneau part de `BASE` puis bonus/malus
@@ -80,6 +80,11 @@ par les tests.
   lue : N +4°C, NE +3°C, NW +2°C, S -2°C, SW -2°C, SE -1°C, E/W ±0.
 - **Exposition au vent** (`exposed`/`side`/`sheltered`) : face exposée + vent
   ≥ 15 km/h annule le malus de pluie récente (séchage actif).
+- **Bonus « conditions excellentes »** (créneau *propre* : aucun malus déclenché,
+  roche sèche) : sécheresse prolongée +1.5, température idéale friction +1.0
+  (bande 5–18°C décalée par le correctif d'orientation). Plafond = 10.0 pile
+  (clair + sec + temp idéale + vent séchant) ; un créneau juste « sans problème »
+  reste ~6.5.
 
 ## Notifications & background
 

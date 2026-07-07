@@ -8,7 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Port 1:1 de spec/__tests__/utils/weatherLogic.test.ts (50 tests).
+ * Port 1:1 de spec/__tests__/utils/weatherLogic.test.ts (50 tests), complété
+ * depuis par les tests des bonus « conditions excellentes » (divergence v2.x).
  *
  * Contexte temporel figé (équivalent des fake timers Jest) :
  *   now    = 2026-06-15T10:00:00Z  (= Paris 12h00, été UTC+2)
@@ -500,6 +501,68 @@ class GetSubSectorSummaryTest {
         val summarySlow = summarize(makeForecast(listOf(slot)), Orientation.S, RockType.SLOW)
         // Roche rapide ignore 24h → pas de pénalité → meilleur score
         assertTrue(summaryFast.numericScore > summarySlow.numericScore)
+    }
+
+    // ── Bonus « conditions excellentes » ────────────────────────────────────────
+
+    @Test
+    fun `canicule - clair, sec, 38degC, vent nul - score 8 exactement`() {
+        // BASE 6 + clair 0.5 + sécheresse 1.5 = 8.0 (38°C hors bande de friction)
+        val slots = listOf(makeSlot("2026-06-16", 14, temperature = 38.0))
+        val summary = summarize(makeForecast(slots), Orientation.S)
+        assertEquals(8.0, summary.numericScore, 1e-9)
+        assertEquals(WeatherScore.GOOD, summary.score)
+    }
+
+    @Test
+    fun `journee parfaite - clair, sec, 12degC, vent sechant de face - score 10`() {
+        // BASE 6 + clair 0.5 + sécheresse 1.5 + temp idéale 1.0 + vent séchant 1.0 = 10.0
+        val slots = listOf(
+            makeSlot(
+                "2026-06-16", 14,
+                temperature = 12.0,
+                windDirection = 180.0, // vent du Sud, face S → exposed
+                windspeed = 20.0,      // ≥ MIN_WIND_DRYING
+            ),
+        )
+        val summary = summarize(makeForecast(slots), Orientation.S, RockType.FAST)
+        assertEquals(10.0, summary.numericScore, 1e-9)
+    }
+
+    @Test
+    fun `gating - proba de pluie 45 pct annule les bonus d'excellence`() {
+        // Malus warn −2 déclenché → créneau pas propre → 6 + 0.5 − 2 = 4.5
+        val slots = listOf(makeSlot("2026-06-16", 14, precipProbability = 45.0))
+        val summary = summarize(makeForecast(slots), Orientation.S)
+        assertEquals(4.5, summary.numericScore, 1e-9)
+    }
+
+    @Test
+    fun `gating - orage sec (WMO 95, 0 mm) ne prend aucun bonus`() {
+        // Sans gating, sécheresse + temp idéale (+2.5) remonteraient l'orage à 2.5
+        val slots = listOf(makeSlot("2026-06-16", 14, weatherCode = 95))
+        assertTrue(summarize(makeForecast(slots), Orientation.S).numericScore < 2.0)
+    }
+
+    @Test
+    fun `gating - pluie recente annule aussi le bonus temperature ideale`() {
+        // 2 mm / 6h fast, vent de côté (side ×0.75) : malus −0.75, pas de bonus
+        // 6 + 0.5 − 0.75 = 5.75 → OK (et pas GOOD via +1 de temp idéale)
+        val slots = listOf(
+            makeSlot("2026-06-16", 14, recentRainMm6h = 2.0, windDirection = 90.0, windspeed = 20.0),
+        )
+        val summary = summarize(makeForecast(slots), Orientation.S, RockType.FAST)
+        assertEquals(5.75, summary.numericScore, 1e-9)
+    }
+
+    @Test
+    fun `bande de friction decalee par l'orientation - 20degC bonus en N, pas en S`() {
+        // Face N : bande [9, 22] → 20°C dedans (9.0) ; face S : [3, 16] → dehors (8.0)
+        val slots = listOf(makeSlot("2026-06-16", 14, temperature = 20.0))
+        val summaryN = summarize(makeForecast(slots), Orientation.N)
+        val summaryS = summarize(makeForecast(slots), Orientation.S)
+        assertEquals(9.0, summaryN.numericScore, 1e-9)
+        assertEquals(8.0, summaryS.numericScore, 1e-9)
     }
 
     // ── TEST DE RÉGRESSION : timezone ───────────────────────────────────────────
